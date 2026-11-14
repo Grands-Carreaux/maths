@@ -210,6 +210,19 @@ Le clavier propose les chiffres, les lettres de l'exercice, +, −, ² et ³, ai
 | Identité remarquable (3e) | (x − 3)(x + 3) | (4x − 7)(4x + 7), (3 + 2x)(3 − 2x) | pour les experts : 2(x + 3) − (2x + 3)(2x − 3) |
 | Factoriser (3e) | 3x − 3, −2x² − 2 | 7x² − 5x, 30a + 36a² | x² − 16, 1 − 49x², (2x + 1)(3x − 5) + (2x + 1)(x + 4) |
 
+### Géométrie
+
+Une figure est dessinée automatiquement (triangle toujours nommé ABC, angle droit en A, B ou C), sauf pour environ une question
+sur trois, rédigée sans figure. Un rappel « Prépare ta calculatrice ! » s'affiche à l'ouverture de ces exerciseurs.
+
+| Exerciseur | ★ | ★★ | ★★★ |
+|---|---|---|---|
+| Théorème de Pythagore | égalité de Pythagore (à choisir) et hypoténuse, résultats entiers | un côté de l'angle droit, arrondi au dixième | mélange : hypoténuse ou côté, arrondi au dixième |
+| Réciproque de Pythagore | un seul niveau : « le triangle est-il rectangle ? » (Oui / Non), puis « en quel point ? » (A / B / C) | | |
+
+La correction suit la rédaction du cours : « Dans le triangle ABC rectangle en A, d'après le théorème de Pythagore :
+BC² = AB² + AC² … BC = √… ≈ … cm ». Pour la réciproque : plus grand côté, calcul des deux membres, conclusion.
+
 ### Fractions
 
 | Exerciseur | ★ | ★★ | ★★★ |
@@ -251,6 +264,9 @@ Cette mise à jour touche le site **et** le script Google (le jeu enregistre ses
 4. Testez : une série jusqu'au bout, une partie du jeu, puis l'onglet **Jeu** de la page professeur.
 
 ### Marche à suivre habituelle
+
+Depuis la mise à jour « Pythagore », chaque envoi de fichiers comprend aussi `index.html` : il contient un **numéro de version**
+qui oblige les navigateurs à charger tout de suite les nouveaux fichiers (plus besoin de Ctrl + F5 ni d'attendre).
 
 Pour toute modification, la marche à suivre est la même :
 1. Claude vous fournit le ou les fichiers modifiés.

@@ -411,3 +411,16 @@ body.en-jeu .jeu-ctrl .key:active { background: rgba(255,255,255,.2); }
 .ij-d { fill: #f2c94c; }
 .pastilles i { border-color: #2f7d5f; }
 .pastilles i.on { background: #2f7d5f; }
+
+/* ---------- Géométrie : figures et énoncés rédigés ---------- */
+.enonce .txt { font-size: 17px; font-weight: 500; line-height: 1.4; margin: 0 0 4px; }
+.enonce .fig { display: block; width: 100%; max-width: 300px; max-height: 21vh; margin: 0 auto; }
+.fig-tri { fill: var(--blue-soft); fill-opacity: .55; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.fig-angle { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+.fig-sommet { font: 700 16px var(--f-body); fill: var(--ink); text-anchor: middle; }
+.fig-long { font: 600 13px var(--f-body); fill: var(--blue); text-anchor: middle; }
+.fig-long.fig-inc { fill: var(--margin); font-size: 17px; font-weight: 800; }
+.answer .suf { font-size: .7em; color: var(--muted); margin-left: 4px; }
+.choix-grid.long { grid-template-columns: 1fr; }
+.choix-grid.long .key.opt { min-height: 52px; font-size: 20px; }
+.rappel { display: inline-flex; align-items: center; gap: 8px; margin: -6px 0 16px; padding: 8px 14px; border-radius: 10px; background: var(--mid-bg); color: var(--mid); font-weight: 700; }

@@ -226,6 +226,153 @@
   const TXT_NEG = ' Si le résultat est négatif, le signe − peut s\u2019écrire devant la fraction, au numérateur ou au dénominateur.';
 
   /* =====================================================================
+     GÉOMÉTRIE : THÉORÈME DE PYTHAGORE (triangle toujours nommé ABC)
+     Les longueurs sont stockées en centièmes (entiers) pour des calculs exacts.
+     ===================================================================== */
+  const SOMMETS = ['A', 'B', 'C'];
+  const cote = (p, q) => [p, q].sort().join('');                         // « BA » → « AB »
+  const fmtC = (n, ech) => { // n / ech écrit avec une virgule, sans zéros inutiles
+    const neg = n < 0; n = Math.abs(n);
+    const ent = Math.floor(n / ech); let dec = String(n % ech).padStart(String(ech).length - 1, '0').replace(/0+$/, '');
+    return (neg ? M : '') + ent + (dec ? ',' + dec : '');
+  };
+  const L = (c) => fmtC(c, 100);                 // longueur en centièmes
+  const L2 = (c) => fmtC(c * c, 10000);          // carré d'une longueur en centièmes
+  const UNITES_L = ['cm', 'cm', 'cm', 'm', 'mm'];
+
+  // Figure : triangle rectangle tourné au hasard, codage de l'angle droit, longueurs connues et « ? » pour la longueur cherchée.
+  function figureTriangle(droit, etiquettes) {
+    const autres = SOMMETS.filter((s) => s !== droit), [P1, P2] = Math.random() < 0.5 ? autres : autres.slice().reverse();
+    const l1 = etiquettes.long[cote(droit, P1)], l2 = etiquettes.long[cote(droit, P2)];
+    let r = Math.max(0.4, Math.min(2.5, l2 / l1));             // proportions approximatives (figure à main levée)
+    const th = Math.random() * Math.PI * 2, a = 1, b = r;
+    const pts = { [droit]: [0, 0], [P1]: [a * Math.cos(th), a * Math.sin(th)], [P2]: [-b * Math.sin(th), b * Math.cos(th)] };
+    const xs = Object.values(pts).map((p) => p[0]), ys = Object.values(pts).map((p) => p[1]);
+    const Wf = 260, Hf = 170, pad = 34, sx = (Wf - 2 * pad) / (Math.max(...xs) - Math.min(...xs) || 1), sy = (Hf - 2 * pad) / (Math.max(...ys) - Math.min(...ys) || 1), s = Math.min(sx, sy);
+    const ox = (Wf - (Math.max(...xs) - Math.min(...xs)) * s) / 2 - Math.min(...xs) * s, oy = (Hf - (Math.max(...ys) - Math.min(...ys)) * s) / 2 - Math.min(...ys) * s;
+    const P = {}; for (const k in pts) P[k] = [pts[k][0] * s + ox, pts[k][1] * s + oy];
+    const G = [(P.A[0] + P.B[0] + P.C[0]) / 3, (P.A[1] + P.B[1] + P.C[1]) / 3];
+    const dehors = (x, y, d) => { const dx = x - G[0], dy = y - G[1], n = Math.hypot(dx, dy) || 1; return [x + dx / n * d, y + dy / n * d]; };
+    let svg = '<svg class="fig" viewBox="0 0 ' + Wf + ' ' + Hf + '" role="img" aria-label="Triangle ABC rectangle en ' + droit + '">';
+    svg += '<polygon points="' + SOMMETS.map((k) => P[k].map((v) => v.toFixed(1)).join(',')).join(' ') + '" class="fig-tri"/>';
+    // codage de l'angle droit
+    const u1 = [P[P1][0] - P[droit][0], P[P1][1] - P[droit][1]], u2 = [P[P2][0] - P[droit][0], P[P2][1] - P[droit][1]];
+    const n1 = Math.hypot(...u1), n2 = Math.hypot(...u2), c = 11;
+    const q1 = [P[droit][0] + u1[0] / n1 * c, P[droit][1] + u1[1] / n1 * c], q2 = [P[droit][0] + u2[0] / n2 * c, P[droit][1] + u2[1] / n2 * c], q3 = [q1[0] + u2[0] / n2 * c, q1[1] + u2[1] / n2 * c];
+    svg += '<polyline points="' + [q1, q3, q2].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ') + '" class="fig-angle"/>';
+    SOMMETS.forEach((k) => { const [x, y] = dehors(P[k][0], P[k][1], 14); svg += '<text x="' + x.toFixed(1) + '" y="' + (y + 5).toFixed(1) + '" class="fig-sommet">' + k + '</text>'; });
+    [['A', 'B'], ['A', 'C'], ['B', 'C']].forEach(([p, q]) => {
+      const t = etiquettes.txt[p + q]; if (!t) return;
+      const m = [(P[p][0] + P[q][0]) / 2, (P[p][1] + P[q][1]) / 2], [x, y] = dehors(m[0], m[1], 15);
+      svg += '<text x="' + x.toFixed(1) + '" y="' + (y + 5).toFixed(1) + '" class="fig-long' + (t === '?' ? ' fig-inc' : '') + '">' + t + '</text>';
+    });
+    return svg + '</svg>';
+  }
+
+  const TRIPLETS = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [6, 8, 10], [9, 12, 15], [12, 16, 20], [9, 40, 41], [15, 20, 25], [10, 24, 26], [12, 35, 37]];
+  const TXT_PYTH = (droit, hyp) => 'Dans le triangle ABC rectangle en ' + droit + ', l’hypoténuse est [' + hyp + '], le côté opposé à l’angle droit. D’après le théorème de Pythagore :';
+
+  // Question de calcul : on cherche l'hypoténuse (cherche = 'hyp') ou un côté de l'angle droit (cherche = 'cote').
+  function questionPythagore(cherche, longueurs, arrondi, sansFigure) {
+    // longueurs : { a, b, h } en centièmes (a, b : côtés de l'angle droit ; h : hypoténuse)
+    const droit = pick(SOMMETS), autres = SOMMETS.filter((s) => s !== droit), u = pick(UNITES_L);
+    const hyp = cote(autres[0], autres[1]), [c1, c2] = shuffle([cote(droit, autres[0]), cote(droit, autres[1])]);
+    const long = { [hyp]: longueurs.h, [c1]: longueurs.a, [c2]: longueurs.b };
+    const inconnu = cherche === 'hyp' ? hyp : c2, connu = cherche === 'hyp' ? [c1, c2] : [hyp, c1];
+    const exact = cherche === 'hyp' ? longueurs.a * longueurs.a + longueurs.b * longueurs.b : longueurs.h * longueurs.h - longueurs.a * longueurs.a; // en dix-millièmes
+    const racine = Math.sqrt(exact) / 100, rep = Math.round(racine * (arrondi ? 10 : 1)) / (arrondi ? 10 : 1);
+    const consigneCalc = 'Calcule ' + inconnu + (arrondi ? ' (arrondi au dixième).' : '.');
+    let enonce;
+    if (sansFigure) {
+      enonce = '<p class="txt">ABC est un triangle rectangle en ' + droit + ' tel que ' + connu[0] + ' = ' + L(long[connu[0]]) + ' ' + u + ' et ' + connu[1] + ' = ' + L(long[connu[1]]) + ' ' + u + '.</p><p class="txt"><strong>' + consigneCalc + '</strong></p>';
+    } else {
+      const txt = { [connu[0]]: L(long[connu[0]]) + ' ' + u, [connu[1]]: L(long[connu[1]]) + ' ' + u, [inconnu]: '?' };
+      enonce = '<p class="txt">Le triangle ABC est rectangle en ' + droit + '. <strong>' + consigneCalc + '</strong></p>' + figureTriangle(droit, { long, txt });
+    }
+    const lignes = [{ m: hyp + '² = ' + c1 + '² + ' + c2 + '²' }];
+    if (cherche === 'hyp') {
+      lignes.push({ m: hyp + '² = ' + L(long[c1]) + '² + ' + L(long[c2]) + '²' }, { m: hyp + '² = ' + L2(long[c1]) + ' + ' + L2(long[c2]) }, { m: hyp + '² = ' + fmtC(exact, 10000) });
+    } else {
+      lignes.push({ m: L(long[hyp]) + '² = ' + L(long[c1]) + '² + ' + c2 + '²' }, { m: c2 + '² = ' + L(long[hyp]) + '² ' + M + ' ' + L(long[c1]) + '²', c: 'On isole ' + c2 + '² en soustrayant.' },
+        { m: c2 + '² = ' + L2(long[hyp]) + ' ' + M + ' ' + L2(long[c1]) }, { m: c2 + '² = ' + fmtC(exact, 10000) });
+    }
+    const exacte = Math.abs(racine - rep) < 1e-9;
+    lignes.push({ m: inconnu + ' = √' + fmtC(exact, 10000) + (exacte ? ' = ' : ' ≈ ') + ecrireDec(rep) + ' ' + u, c: exacte ? '' : 'Avec la calculatrice, puis on arrondit au dixième.' });
+    return {
+      type: 'nombre', decimal: true, enonce, reponse: decQ(rep), prefixe: inconnu + ' = ', suffixe: u, clavier: ',', consigne: 'Théorème de Pythagore',
+      correction: { texte: TXT_PYTH(droit, hyp), lignes }
+    };
+  }
+  const ecrireDec = (x) => String(x).replace('.', ',');
+  const decQ = (x) => { const s = String(x), d = (s.split('.')[1] || '').length; return Q(Math.round(x * Math.pow(10, d)), Math.pow(10, d)); };
+
+  // Côtés de l'angle droit décimaux (en centièmes, un chiffre après la virgule) pour un résultat à arrondir
+  function longueursDecimales(cherche) {
+    for (let k = 0; k < 500; k++) {
+      if (cherche === 'hyp') {
+        const a = rnd(15, 120) * 10, b = rnd(15, 120) * 10, h = Math.sqrt(a * a + b * b);
+        const x = h / 10; if (Math.abs(x - Math.floor(x) - 0.5) < 0.05) continue; // évite les arrondis ambigus
+        return { a, b, h: Math.round(h) };
+      }
+      const h = rnd(40, 160) * 10, a = rnd(15, h / 10 - 8) * 10, bb = h * h - a * a, b = Math.sqrt(bb);
+      if (b < 150) continue;
+      const x = b / 10; if (Math.abs(x - Math.floor(x) - 0.5) < 0.05) continue;
+      return { a, b: Math.round(b), h };
+    }
+    return { a: 300, b: 400, h: 500 };
+  }
+  const tripletEntier = () => { let t, k; do { t = pick(TRIPLETS); k = rnd(1, 3); } while (t[2] * k > 60); return { a: t[0] * k * 100, b: t[1] * k * 100, h: t[2] * k * 100 }; };
+
+  function questionEgalite(sansFigure) {
+    const droit = pick(SOMMETS), autres = SOMMETS.filter((s) => s !== droit), hyp = cote(autres[0], autres[1]);
+    const cotes = ['AB', 'AC', 'BC'], egalite = (seul) => { const r = cotes.filter((c) => c !== seul); return seul + '² = ' + r[0] + '² + ' + r[1] + '²'; };
+    const options = shuffle(cotes.slice()), reponse = options.indexOf(hyp);
+    const enonce = '<p class="txt">Le triangle ABC est rectangle en ' + droit + '. <strong>Quelle est l’égalité de Pythagore ?</strong></p>' +
+      (sansFigure ? '' : figureTriangle(droit, { long: { AB: 1, AC: rnd(8, 14) / 10, BC: rnd(8, 14) / 10 }, txt: {} }));
+    return {
+      type: 'choix', enonce, consigne: 'Théorème de Pythagore',
+      etapes: [{ texte: 'Choisis la bonne égalité :', options: options.map(egalite), reponse }],
+      correction: { texte: 'L’hypoténuse est le côté opposé à l’angle droit : ici [' + hyp + '], car le triangle est rectangle en ' + droit + '. Le carré de l’hypoténuse est égal à la somme des carrés des deux autres côtés.', lignes: [{ m: egalite(hyp) }] }
+    };
+  }
+
+  // Réciproque : triplets (éventuellement décimaux) ou triangles « presque » rectangles
+  const TRIPLETS_R = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [9, 40, 41], [11, 60, 61], [33, 56, 65], [28, 45, 53], [48, 55, 73], [13, 84, 85], [36, 77, 85], [39, 80, 89], [65, 72, 97], [60, 221, 229], [12, 35, 37]];
+  function questionReciproque() {
+    let a, b, h;
+    for (;;) {
+      const t = pick(TRIPLETS_R), ech = t[2] > 100 ? pick([1]) : t[2] > 30 ? pick([1, 10]) : pick([100, 50, 20, 10, 200, 300]); // centièmes
+      [a, b, h] = t.map((v) => v * ech);
+      if (h <= 30000 && Math.min(a, b) >= 30) break;
+    }
+    const rect = Math.random() < 0.5;
+    if (!rect) {
+      const pas = [a, b, h].every((v) => v % 100 === 0) ? 100 : [a, b, h].every((v) => v % 10 === 0) ? 10 : 1;
+      h += (h - pas > Math.max(a, b) && Math.random() < 0.5 ? -1 : 1) * pas;
+    }
+    const droit = pick(SOMMETS), autres = SOMMETS.filter((s) => s !== droit), hyp = cote(autres[0], autres[1]);
+    const [c1, c2] = shuffle([cote(droit, autres[0]), cote(droit, autres[1])]), long = { [hyp]: h, [c1]: a, [c2]: b }, u = pick(UNITES_L);
+    const ordre = shuffle(['AB', 'AC', 'BC']);
+    const enonce = '<p class="txt">ABC est un triangle tel que ' + ordre[0] + ' = ' + L(long[ordre[0]]) + ' ' + u + ' ; ' + ordre[1] + ' = ' + L(long[ordre[1]]) + ' ' + u + ' et ' + ordre[2] + ' = ' + L(long[ordre[2]]) + ' ' + u + '.</p>';
+    const H2 = h * h, S2 = a * a + b * b;
+    const etapes = [{ texte: 'Le triangle ABC est-il rectangle ?', options: ['Oui', 'Non'], reponse: rect ? 0 : 1 }];
+    if (rect) etapes.push({ texte: 'En quel point ?', options: SOMMETS.slice(), reponse: SOMMETS.indexOf(droit) });
+    return {
+      type: 'choix', enonce, consigne: 'Réciproque du théorème de Pythagore', etapes,
+      correction: {
+        texte: 'On compare le carré du plus grand côté avec la somme des carrés des deux autres côtés.',
+        lignes: [
+          { m: 'Le plus grand côté est [' + hyp + '].' },
+          { m: hyp + '² = ' + L(h) + '² = ' + L2(h) },
+          { m: c1 + '² + ' + c2 + '² = ' + L(a) + '² + ' + L(b) + '² = ' + L2(a) + ' + ' + L2(b) + ' = ' + fmtC(S2, 10000) },
+          rect ? { m: hyp + '² = ' + c1 + '² + ' + c2 + '²', c: 'Donc, d’après la réciproque du théorème de Pythagore, le triangle ABC est rectangle en ' + droit + ' (le sommet opposé au plus grand côté).' }
+            : { m: hyp + '² ≠ ' + c1 + '² + ' + c2 + '²', c: 'L’égalité de Pythagore n’est pas vérifiée, donc le triangle ABC n’est pas rectangle.' }
+        ]
+      }
+    };
+  }
+
+  /* =====================================================================
      THÈMES
      ===================================================================== */
   const THEMES = [
@@ -451,6 +598,36 @@
             'On repère le facteur commun ' + par(c) + ', on le met devant, et on écrit le reste entre crochets. Attention au signe − devant le second produit.', [L]);
           return Object.assign(q, { facto: true, reponseHTML: rep });
         } }
+      ]
+    },
+
+    /* ---------------- Géométrie ---------------- */
+    {
+      id: 'pythagore', classes: ['4e', '3e'], domaine: 'Géométrie',
+      titre: 'Théorème de Pythagore',
+      resume: 'Écrire l’égalité de Pythagore et calculer une longueur dans un triangle rectangle.',
+      consigne: 'Théorème de Pythagore', rappel: 'Prépare ta calculatrice !',
+      niveaux: [
+        { nom: 'L’égalité et l’hypoténuse', gen() {
+          const sansFigure = Math.random() < 1 / 3;
+          return Math.random() < 0.35 ? questionEgalite(sansFigure) : questionPythagore('hyp', tripletEntier(), false, sansFigure);
+        } },
+        { nom: 'Un côté de l’angle droit', gen() {
+          return questionPythagore('cote', longueursDecimales('cote'), true, Math.random() < 1 / 3);
+        } },
+        { nom: 'Mélange', gen() {
+          const cherche = Math.random() < 0.5 ? 'hyp' : 'cote';
+          return questionPythagore(cherche, longueursDecimales(cherche), true, Math.random() < 1 / 3);
+        } }
+      ]
+    },
+    {
+      id: 'reciproque-pythagore', classes: ['4e', '3e'], domaine: 'Géométrie',
+      titre: 'Réciproque de Pythagore',
+      resume: 'Dire si un triangle est rectangle, et en quel point.',
+      consigne: 'Réciproque du théorème de Pythagore', rappel: 'Prépare ta calculatrice !',
+      niveaux: [
+        { nom: 'Le triangle est-il rectangle ?', gen: questionReciproque }
       ]
     },
 

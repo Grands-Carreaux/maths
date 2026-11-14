@@ -136,17 +136,18 @@
     const moi = getMoi(), ec = lireEnCours(t);
     app.innerHTML =
       '<div class="wrap"><a class="btn btn-ghost back" href="#">← Tous les exerciseurs</a>' +
-      '<div class="thead"><span class="eyebrow">' + esc(t.domaine) + ' · ' + t.classes.join(', ') + '</span><h1>' + esc(t.titre) + '</h1><p>' + esc(t.resume) + ' Choisis ta difficulté : une série compte ' + C.nbQuestions + ' questions.</p></div>' +
+      '<div class="thead"><span class="eyebrow">' + esc(t.domaine) + ' · ' + t.classes.join(', ') + '</span><h1>' + esc(t.titre) + '</h1><p>' + esc(t.resume) + (t.niveaux.length > 1 ? ' Choisis ta difficulté : une' : ' Une') + ' série compte ' + C.nbQuestions + ' questions.</p></div>' +
       '<div id="identzone"></div>' + (ec
         ? '<div class="card reprise"><div><strong>Série en pause</strong><span class="sub">' + stars(ec.lvl) + ' ' + esc(t.niveaux[ec.lvl - 1].nom) + ' · question ' + questionEnCours(ec) + '/' + ec.n + ' · ' + ec.score + (ec.score > 1 ? ' bonnes réponses' : ' bonne réponse') + '</span>' +
           '<span class="sub">Commencer une nouvelle série remplacera celle-ci.</span></div><div class="btn-row"><button class="btn btn-primary" id="reprendre">Reprendre</button><button class="btn btn-ghost" id="abandon">Abandonner</button></div></div>'
         : '') + '<div class="levels">' +
       t.niveaux.map((lv, i) => {
         const b = store.get('best:' + t.id + ':' + (i + 1), null);
-        return '<button class="card level" data-l="' + (i + 1) + '"><span class="stars" aria-label="Niveau ' + (i + 1) + '">' + stars(i + 1) + '</span>' +
+        return '<button class="card level" data-l="' + (i + 1) + '"><span class="stars" aria-label="Niveau ' + (i + 1) + '">' + (t.niveaux.length > 1 ? stars(i + 1) : '') + '</span>' +
           '<span><strong>' + esc(lv.nom) + '</strong><span class="sub">' + (b ? 'Ton meilleur score : ' + b.s + '/' + b.t : 'Pas encore essayé') + '</span></span><span aria-hidden="true">›</span></button>';
       }).join('') + '</div>' +
       (C.urlScript ? '' : '<p class="notice">Mode démonstration : les résultats ne sont pas encore envoyés au professeur.</p>') + '</div>';
+    if (t.rappel) app.querySelector('.thead').insertAdjacentHTML('afterend', '<p class="rappel" role="note"><svg viewBox="0 0 20 24" width="18" height="22" aria-hidden="true"><rect x="1" y="1" width="18" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="4" width="12" height="5" rx="1" fill="currentColor"/><g fill="currentColor"><circle cx="6" cy="13" r="1.4"/><circle cx="10" cy="13" r="1.4"/><circle cx="14" cy="13" r="1.4"/><circle cx="6" cy="18" r="1.4"/><circle cx="10" cy="18" r="1.4"/><circle cx="14" cy="18" r="1.4"/></g></svg>' + esc(t.rappel) + '</p>');
     if (!moi) app.querySelector('#identzone').appendChild(formIdent(() => vueTheme(t)));
     if (ec) {
       app.querySelector('#reprendre').onclick = () => reprendre(t, ec);
@@ -259,9 +260,9 @@
       '<span class="count">' + (S.i + 1) + '/' + S.n + '</span><div class="track"><i style="width:' + (S.i / S.n * 100) + '%"></i></div>' +
       '<span class="score">✓ ' + S.score + '</span></div>' +
       '<div id="quitzone"></div>' +
-      '<section class="sheet"><div class="consigne">' + esc(S.q.consigne || t.consigne) + ' <span aria-hidden="true">' + stars(lvl) + '</span></div>' +
+      '<section class="sheet"><div class="consigne">' + esc(S.q.consigne || t.consigne) + (t.niveaux.length > 1 ? ' <span aria-hidden="true">' + stars(lvl) + '</span>' : '') + '</div>' +
       '<div class="enonce">' + S.q.enonce + '</div>' +
-      '<div class="answer" id="ans"><span class="pre">' + esc(S.q.prefixe != null ? S.q.prefixe : estChoix() ? '' : (t.prefixe || '= ')) + '</span><span class="box" id="box"></span></div></section>' +
+      '<div class="answer" id="ans"><span class="pre">' + esc(S.q.prefixe != null ? S.q.prefixe : estChoix() ? '' : (t.prefixe || '= ')) + '</span><span class="box" id="box"></span>' + (S.q.suffixe ? '<span class="suf">' + esc(S.q.suffixe) + '</span>' : '') + '</div></section>' +
       '<p class="hint" id="hint"></p>' +
       '<div id="zone">' + pad + '</div></div>';
     afficherSaisie();
@@ -455,14 +456,15 @@
   const memeMap = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => a[k] === b[k]); };
   const reponseHTML = (q) => (q.type === 'expr' ? q.reponseHTML
     : q.type === 'choix' ? q.etapes.map((e) => e.options[e.reponse]).join(' · ')
-      : q.type === 'duree' ? fmtDureeQ(q.reponse, q.unites) : fracQ(q.reponse));
+      : q.type === 'duree' ? fmtDureeQ(q.reponse, q.unites)
+        : q.decimal ? String(q.reponse.n / q.reponse.d).replace('.', ',').replace('-', M) + (q.suffixe ? ' ' + esc(q.suffixe) : '') : fracQ(q.reponse));
 
   // Questions à choix : une ou plusieurs étapes (ex. « rectangle ? » puis « en quel point ? »).
   // On passe à l'étape suivante seulement si la réponse est juste.
   function afficherChoix() {
     const st = S.q.etapes[S.etape];
     app.querySelector('#choix').innerHTML = (st.texte ? '<p class="choix-q">' + st.texte + '</p>' : '') +
-      '<div class="choix-grid n' + Math.min(st.options.length, 4) + '">' + st.options.map((o, i) => '<button class="key opt" data-c="' + i + '">' + o + '</button>').join('') + '</div>';
+      '<div class="choix-grid n' + Math.min(st.options.length, 4) + (st.options.some((o) => o.replace(/<[^>]+>/g, '').length > 6) ? ' long' : '') + '">' + st.options.map((o, i) => '<button class="key opt" data-c="' + i + '">' + o + '</button>').join('') + '</div>';
   }
   function choisir(i) {
     if (S.repondu) return;
