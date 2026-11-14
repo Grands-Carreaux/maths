@@ -424,3 +424,18 @@ body.en-jeu .jeu-ctrl .key:active { background: rgba(255,255,255,.2); }
 .choix-grid.long { grid-template-columns: 1fr; }
 .choix-grid.long .key.opt { min-height: 52px; font-size: 20px; }
 .rappel { display: inline-flex; align-items: center; gap: 8px; margin: -6px 0 16px; padding: 8px 14px; border-radius: 10px; background: var(--mid-bg); color: var(--mid); font-weight: 700; }
+
+/* ---------- Exerciseurs en « parties » et automatismes ---------- */
+.level.sans-etoiles { grid-template-columns: 1fr auto; }
+.enonce .tab-prop { border-collapse: collapse; font-size: 18px; margin: 6px 0; }
+.enonce .tab-prop td { border: 2px solid var(--ink); padding: 6px 14px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--surface); }
+.enonce .tab-prop td.inc { color: var(--margin); font-weight: 800; }
+.enonce .graph { display: block; width: 100%; max-width: 300px; max-height: 26vh; margin: 2px auto 0; }
+.graph .g-grille { stroke: var(--line-strong); stroke-width: 1; }
+.graph .g-axe { stroke: var(--ink); stroke-width: 1.6; }
+.graph .g-courbe { stroke: var(--blue); stroke-width: 3; fill: none; }
+.graph .g-barre { fill: var(--blue); fill-opacity: .8; }
+.graph text { font: 600 11px var(--f-body); fill: var(--ink); }
+.graph .g-titre { font-size: 11px; fill: var(--muted); }
+.enonce .liste { font-size: 22px; font-weight: 700; letter-spacing: .02em; }
+.enonce .prog { margin: 6px 0; padding: 8px 12px; border-left: 4px solid var(--blue); background: var(--blue-soft); border-radius: 0 8px 8px 0; font-size: 16px; font-weight: 600; line-height: 1.5; }

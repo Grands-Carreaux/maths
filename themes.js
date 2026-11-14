@@ -338,15 +338,18 @@
 
   // Réciproque : triplets (éventuellement décimaux) ou triangles « presque » rectangles
   const TRIPLETS_R = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [9, 40, 41], [11, 60, 61], [33, 56, 65], [28, 45, 53], [48, 55, 73], [13, 84, 85], [36, 77, 85], [39, 80, 89], [65, 72, 97], [60, 221, 229], [12, 35, 37]];
-  function questionReciproque() {
+  function questionReciproque(simple) {
     let a, b, h;
-    for (;;) {
+    if (simple) { // nombres simples, faisables de tête
+      const rectS = Math.random() < 0.5;
+      [a, b, h] = (rectS ? pick([[3, 4, 5], [6, 8, 10], [5, 12, 13], [9, 12, 15], [8, 15, 17]]) : pick([[4, 5, 6], [5, 6, 8], [6, 7, 9], [2, 3, 4], [7, 8, 10], [4, 6, 7], [5, 7, 9]])).map((v) => v * 100);
+    } else for (;;) {
       const t = pick(TRIPLETS_R), ech = t[2] > 100 ? pick([1]) : t[2] > 30 ? pick([1, 10]) : pick([100, 50, 20, 10, 200, 300]); // centièmes
       [a, b, h] = t.map((v) => v * ech);
       if (h <= 30000 && Math.min(a, b) >= 30) break;
     }
-    const rect = Math.random() < 0.5;
-    if (!rect) {
+    const rect = simple ? a * a + b * b === h * h : Math.random() < 0.5;
+    if (!rect && !simple) {
       const pas = [a, b, h].every((v) => v % 100 === 0) ? 100 : [a, b, h].every((v) => v % 10 === 0) ? 10 : 1;
       h += (h - pas > Math.max(a, b) && Math.random() < 0.5 ? -1 : 1) * pas;
     }
@@ -468,9 +471,373 @@
   ];
 
   /* =====================================================================
+     AUTOMATISMES DU BREVET (3e, sans calculatrice)
+     Chaque question porte un « cat » (type) : une série évite deux questions du même type.
+     Environ une question sur trois a un résultat (ou un terme) négatif dans les parties 1 et 2.
+     ===================================================================== */
+  const neg3 = () => Math.random() < 1 / 3;
+  // « ax + b » écrit proprement (x, −x, 3x − 5…)
+  const lin = (a, b) => {
+    let t = a === 1 ? 'x' : a === -1 ? M + 'x' : a ? num(a) + 'x' : '';
+    if (b) t = t ? t + (b > 0 ? ' + ' + b : ' ' + M + ' ' + (-b)) : num(b);
+    return t || '0';
+  };
+  const pt = (s) => '<p class="txt">' + s + '</p>';
+  const auto = (q, cat, consigne) => Object.assign(q, { cat, consigne: consigne || q.consigne || 'Automatisme' });
+  const frS = (n, d, premier) => { if (d === 1) return n < 0 && !premier ? '(' + num(n) + ')' : num(n); const f = F(Math.abs(n), d); return n < 0 ? (premier ? M + f : P(M + f)) : f; };
+  const fracRes = (q) => (q.n < 0 ? M : '') + (q.d === 1 ? Math.abs(q.n) : F(Math.abs(q.n), q.d));
+  const nbQ = (enonce, rep, opts) => Object.assign({ type: 'nombre', enonce: pt(enonce), reponse: rep, prefixe: '= ', clavier: '-', correction: { texte: '', lignes: [] } }, opts);
+  function qcmQ(enonce, options, bonne, texte, lignes, question) {
+    const ordre = shuffle(options.map((o, i) => i));
+    return { type: 'choix', enonce: pt(enonce), etapes: [{ texte: question || 'Choisis la bonne réponse :', options: ordre.map((i) => options[i]), reponse: ordre.indexOf(bonne) }], correction: { texte, lignes } };
+  }
+  const fracIrrA = (dmax) => { let n, d; do { d = rnd(2, dmax); n = rnd(1, 2 * d - 1); } while (gcd(n, d) !== 1); return [n, d]; };
+  const sup = (e) => (e === 1 ? '' : String(e).replace(/\d/g, (c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[c]));
+
+  /* ---------- 1. Nombres et calculs ---------- */
+  const AUTO_NOMBRES = [
+    () => { // simplifier une fraction
+      const [a, b] = fracIrrA(12), k = rnd(2, 9), neg = neg3(), r = Q(neg ? -a : a, b);
+      const disp = neg ? pick([M + F(k * a, k * b), F(M + k * a, k * b), F(k * a, M + k * b)]) : F(k * a, k * b);
+      return auto(nbQ(disp, r, { enonce: pt('Simplifie au maximum : ' + disp), clavier: '-/', irreductible: true,
+        correction: { texte: k * a + ' et ' + k * b + ' sont divisibles par ' + k + '.', lignes: [{ m: disp + ' = ' + (neg ? M : '') + F(k * a + ' ÷ ' + k, k * b + ' ÷ ' + k) }, { m: '= ' + fracRes(r) }] } }), 'frac-simplifier', 'Fractions');
+    },
+    () => { // addition ou soustraction de fractions (résultat négatif une fois sur trois)
+      const veut = neg3(); let b, d, n1, c, op, v;
+      for (let k = 0; k < 300; k++) {
+        b = pick([2, 3, 4, 5, 6, 8, 10, 12]); d = pick([2, 3, 4, 5, 6, 8, 10, 12]);
+        if (b === d || lcm(b, d) > 24) continue;
+        [n1] = fracIrrA(9); n1 = rnd(1, 2 * b - 1); if (gcd(n1, b) !== 1) continue;
+        c = rnd(1, 2 * d - 1); if (gcd(c, d) !== 1) continue;
+        op = pick(['+', M, M]); if (Math.random() < 0.25) n1 = -n1;
+        v = Q(n1 * d + (op === '+' ? 1 : -1) * c * b, b * d);
+        if (v.n !== 0 && (v.n < 0) === veut) break;
+      }
+      const D = lcm(b, d), disp = frS(n1, b, true) + ' ' + op + ' ' + F(c, d), N = n1 * D / b + (op === '+' ? 1 : -1) * c * D / d;
+      const lignes = [{ m: disp }, { m: '= ' + frS(n1 * D / b, D, true) + ' ' + op + ' ' + F(c * D / d, D), c: 'Même dénominateur : ' + D + '.' }, { m: '= ' + (N < 0 ? M + F(-N, D) : F(N, D)) }];
+      if (gcd(N, D) > 1) lignes.push({ m: '= ' + fracRes(v), c: 'On simplifie.' });
+      return auto(nbQ(disp, v, { enonce: pt('Calcule et donne le résultat sous forme irréductible : ' + disp), clavier: '-/', irreductible: true, correction: { texte: 'On met les fractions au même dénominateur, puis on additionne ou on soustrait les numérateurs.', lignes } }), 'frac-somme', 'Fractions');
+    },
+    () => { // produit de fractions
+      const neg = neg3(); let [a, b] = fracIrrA(9), [c, d] = fracIrrA(9);
+      if (neg) { if (Math.random() < 0.5) a = -a; else c = -c; }
+      const disp = frS(a, b, true) + ' × ' + frS(c, d, false), r = Q(a * c, b * d);
+      return auto(nbQ(disp, r, { enonce: pt('Calcule et donne le résultat sous forme irréductible : ' + disp), clavier: '-/', irreductible: true,
+        correction: { texte: 'On multiplie les numérateurs entre eux et les dénominateurs entre eux. Un seul facteur négatif : le produit est négatif.', lignes: [{ m: disp + ' = ' + (a * c < 0 ? M : '') + F(Math.abs(a) + ' × ' + Math.abs(c), b + ' × ' + d) }, { m: '= ' + fracRes(r) }] } }), 'frac-produit', 'Fractions');
+    },
+    () => { // quotient de fractions
+      const neg = neg3(); let [a, b] = fracIrrA(9), [c, d] = fracIrrA(9);
+      if (neg) { if (Math.random() < 0.5) a = -a; else c = -c; }
+      const disp = frS(a, b, true) + ' ÷ ' + frS(c, d, false), r = Q(a * d, b * c);
+      return auto(nbQ(disp, r, { enonce: pt('Calcule et donne le résultat sous forme irréductible : ' + disp), clavier: '-/', irreductible: true,
+        correction: { texte: 'Diviser par une fraction, c’est multiplier par son inverse.', lignes: [{ m: disp + ' = ' + frS(a, b, true) + ' × ' + frS(c < 0 ? -d : d, Math.abs(c), false) }, { m: '= ' + fracRes(r) }] } }), 'frac-quotient', 'Fractions');
+    },
+    () => { // relatifs
+      const f = rnd(1, 4); let disp, r, texte;
+      if (f === 1) { const a = rndNZ(-15, 15), b = rnd(2, 15), op = pick(['+', M]); r = op === '+' ? a + b : a - b; disp = num(a) + ' ' + op + ' ' + b; texte = 'On se déplace sur la droite graduée : ajouter, c’est avancer ; soustraire, c’est reculer.'; }
+      else if (f === 2) { const a = rndNZ(-9, 9), b = rndNZ(-9, 9); r = a * b; disp = '(' + num(a) + ') × (' + num(b) + ')'; texte = 'Règle des signes : deux nombres de même signe donnent un produit positif, de signes contraires un produit négatif.'; }
+      else if (f === 3) { const a = rnd(2, 9), b = rnd(2, 9); r = a * b * (Math.random() < 0.5 ? -1 : 1); const s = r < 0 ? M : ''; disp = s + (a * b) + ' ÷ ' + (r < 0 ? b : '(' + M + b + ')'); r = r < 0 ? -a : a; disp = (r < 0 ? M + (a * b) : M + (a * b)) + ' ÷ ' + (r < 0 ? b : '(' + M + b + ')'); texte = 'Règle des signes : même règle pour le quotient que pour le produit.'; }
+      else { const a = rnd(2, 9), carre = Math.random() < 0.5; r = carre ? a * a : -a * a; disp = carre ? '(' + M + a + ')²' : M + a + '²'; texte = carre ? '(' + M + a + ')² = (' + M + a + ') × (' + M + a + ') : le carré porte sur le nombre négatif.' : M + a + '² = ' + M + '(' + a + ' × ' + a + ') : le carré porte seulement sur ' + a + '.'; }
+      return auto(nbQ(disp, Q(r), { enonce: pt('Calcule : <strong>' + disp + '</strong>'), correction: { texte, lignes: [{ m: disp + ' = ' + num(r) }] } }), 'relatifs', 'Nombres relatifs');
+    },
+    () => { // pourcentages
+      if (Math.random() < 0.5) {
+        const p = pick([10, 20, 25, 30, 40, 50, 75, 5, 15]), pas = 100 / gcd(p, 100), n = pas * rnd(2, Math.max(2, Math.floor(400 / pas))), r = p * n / 100;
+        return auto(nbQ(p + ' % de ' + n, Q(r), { enonce: pt('Calcule <strong>' + p + ' % de ' + n + '</strong>.'), correction: { texte: 'Prendre ' + p + ' %, c’est multiplier par ' + p + ' ÷ 100.', lignes: [{ m: p + ' % de ' + n + ' = ' + n + ' × ' + p + ' ÷ 100' }, { m: '= ' + r }] } }), 'pourcent', 'Pourcentages');
+      }
+      const prix = rnd(1, 10) * 20, p = pick([10, 20, 25, 50, 5, 15, 30]), baisse = Math.random() < 0.6, r = r3(prix * (1 + (baisse ? -p : p) / 100));
+      return auto(nbQ('', decQ(r), { enonce: pt('Un article à <strong>' + prix + ' €</strong> ' + (baisse ? 'baisse' : 'augmente') + ' de <strong>' + p + ' %</strong>. Quel est son nouveau prix ?'), decimal: true, suffixe: '€', clavier: ',',
+        correction: { texte: 'On calcule d’abord ' + p + ' % de ' + prix + ' €, puis on ' + (baisse ? 'soustrait' : 'ajoute') + '.', lignes: [{ m: p + ' % de ' + prix + ' = ' + dv(prix * p / 100) + ' €' }, { m: prix + ' ' + (baisse ? M : '+') + ' ' + dv(prix * p / 100) + ' = ' + dv(r) + ' €' }] } }), 'pourcent', 'Pourcentages');
+    },
+    () => { // un diviseur (QCM)
+      const N = pick([60, 72, 84, 90, 96, 100, 120, 126, 150, 180]), divs = []; for (let k = 3; k < N; k++) if (N % k === 0 && k > 2) divs.push(k);
+      const bon = pick(divs.filter((x) => x > 3 && x < 50)), non = shuffle(Array.from({ length: 45 }, (_, i) => i + 6).filter((x) => N % x !== 0 && Math.abs(x - bon) < 25)).slice(0, 3);
+      return auto(qcmQ('Quel nombre est un diviseur de <strong>' + N + '</strong> ?', [String(bon)].concat(non.map(String)), 0, bon + ' est un diviseur de ' + N + ' car ' + N + ' = ' + bon + ' × ' + (N / bon) + '.', [{ m: N + ' = ' + bon + ' × ' + (N / bon) }]), 'diviseur', 'Arithmétique');
+    },
+    () => { // critère de divisibilité par 9
+      let a, c, x; do { a = rnd(1, 9); c = rnd(0, 9); x = (9 - (a + c) % 9) % 9; } while (x === 0);
+      return auto(nbQ('', Q(x), { enonce: pt('Le nombre <strong>' + a + '□' + c + '</strong> est divisible par 9. Quel chiffre remplace □ ?'), prefixe: '□ = ', clavier: '',
+        correction: { texte: 'Un nombre est divisible par 9 si la somme de ses chiffres est un multiple de 9.', lignes: [{ m: a + ' + □ + ' + c + ' doit être un multiple de 9' }, { m: a + ' + ' + x + ' + ' + c + ' = ' + (a + x + c) }] } }), 'divisibilite', 'Arithmétique');
+    },
+    () => { // nombre premier ?
+      const premiers = [29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97], pieges = [21, 27, 33, 39, 49, 51, 57, 63, 69, 77, 81, 87, 91, 93];
+      const premier = Math.random() < 0.5, n = pick(premier ? premiers : pieges);
+      let p = 2; while (!premier && n % p !== 0) p++;
+      return auto({ type: 'choix', enonce: pt('<strong>' + n + '</strong> est-il un nombre premier ?'), etapes: [{ texte: 'Ta réponse :', options: ['Oui', 'Non'], reponse: premier ? 0 : 1 }],
+        correction: { texte: 'Un nombre premier a exactement deux diviseurs : 1 et lui-même.', lignes: [premier ? { m: n + ' n’est divisible ni par 2, ni par 3, ni par 5, ni par 7 : il est premier.' } : { m: n + ' = ' + p + ' × ' + (n / p) + ' : il n’est pas premier.' }] } }, 'premier', 'Arithmétique');
+    },
+    () => { // décomposition en facteurs premiers (QCM)
+      const N = pick([12, 18, 20, 24, 28, 36, 40, 45, 50, 54, 56, 60, 63, 72, 75, 84, 90, 98, 100]);
+      const fac = {}; let m = N; for (let p = 2; m > 1; p++) while (m % p === 0) { fac[p] = (fac[p] || 0) + 1; m /= p; }
+      const ecr = (f) => Object.keys(f).filter((p) => f[p]).map((p) => p + sup(f[p])).join(' × ');
+      const bon = ecr(fac), opts = new Set([bon]);
+      const divs = []; for (let k = 4; k * k <= N; k++) if (N % k === 0) divs.push(k);
+      divs.forEach((k) => opts.add(k + ' × ' + N / k));
+      Object.keys(fac).forEach((p) => { const f2 = Object.assign({}, fac); f2[p]++; opts.add(ecr(f2)); });
+      const autres = shuffle([...opts].filter((o) => o !== bon)).slice(0, 3);
+      return auto(qcmQ('Quelle est la décomposition de <strong>' + N + '</strong> en produit de facteurs premiers ?', [bon].concat(autres), 0,
+        'On divise par les nombres premiers 2, 3, 5, 7… autant de fois que possible. Les facteurs doivent tous être premiers.', [{ m: N + ' = ' + bon }]), 'decomposition', 'Arithmétique');
+    },
+    () => { // proportionnalité
+      const k = pick([2, 3, 4, 5, 1.5, 2.5, 0.5, 6]), x1 = rnd(2, 12) * (k % 1 ? 2 : 1), x2 = rnd(2, 15) * (k % 1 ? 2 : 1);
+      if (x1 === x2) return AUTO_NOMBRES[10]();
+      const y1 = r3(x1 * k), y2 = r3(x2 * k);
+      return auto(nbQ('', decQ(y2), { decimal: true, clavier: ',', prefixe: '? = ',
+        enonce: pt('Ce tableau est un tableau de proportionnalité. Complète-le.') + '<table class="tab-prop"><tr><td>' + x1 + '</td><td>' + x2 + '</td></tr><tr><td>' + dv(y1) + '</td><td class="inc">?</td></tr></table>',
+        correction: { texte: 'On cherche le coefficient de proportionnalité : ' + dv(y1) + ' ÷ ' + x1 + ' = ' + dv(k) + '.', lignes: [{ m: '? = ' + x2 + ' × ' + dv(k) + ' = ' + dv(y2) }] } }), 'proportionnalite', 'Proportionnalité');
+    },
+    () => { // comparer des nombres (QCM)
+      const fr = [[1, 2], [1, 4], [3, 4], [1, 5], [2, 5], [3, 5], [4, 5], [3, 10], [7, 10], [9, 10], [3, 2], [5, 4]];
+      const negatif = neg3(); let vals;
+      do {
+        vals = [];
+        while (vals.length < 4) {
+          let v, txt;
+          if (Math.random() < 0.5) { const [a, b] = pick(fr); v = a / b; txt = F(a, b); } else { v = rnd(5, 140) / 100; if (Math.random() < 0.5) v = Math.round(v * 10) / 10; txt = dv(v); }
+          if (negatif && Math.random() < 0.5) { v = -v; txt = M + txt; }
+          if (vals.every((w) => Math.abs(w.v - v) > 0.015)) vals.push({ v, txt });
+        }
+      } while (false);
+      const petit = Math.random() < 0.5, cible = vals.reduce((m, w) => ((petit ? w.v < m.v : w.v > m.v) ? w : m));
+      return auto(qcmQ('Quel est le <strong>plus ' + (petit ? 'petit' : 'grand') + '</strong> de ces nombres ?', vals.map((w) => w.txt), vals.indexOf(cible),
+        'On écrit tous les nombres sous forme décimale pour les comparer.', [{ m: vals.map((w) => w.txt + ' = ' + dv(w.v)).join(' ; ') }]), 'comparer', 'Comparer des nombres');
+    },
+    () => { // priorités opératoires
+      const f = rnd(1, 3); let disp, r, lignes;
+      if (f === 1) { const a = rnd(2, 20), b = rnd(2, 9), c = rnd(2, 9), op = neg3() ? M : '+'; r = op === '+' ? a + b * c : a - b * c; disp = a + ' ' + op + ' ' + b + ' × ' + c; lignes = [{ m: disp }, { m: '= ' + a + ' ' + op + ' ' + b * c }, { m: '= ' + num(r) }]; }
+      else if (f === 2) { const a = rnd(2, 12), b = rnd(2, 15), c = rnd(2, 6); r = (a - b) * c; disp = '(' + a + ' ' + M + ' ' + b + ') × ' + c; lignes = [{ m: disp }, { m: '= ' + (a - b < 0 ? '(' + num(a - b) + ')' : a - b) + ' × ' + c }, { m: '= ' + num(r) }]; }
+      else { const a = rnd(2, 9), b = rnd(2, 9), c = rnd(2, 9), d = rnd(2, 9); r = a * b - c * d; disp = a + ' × ' + b + ' ' + M + ' ' + c + ' × ' + d; lignes = [{ m: disp }, { m: '= ' + a * b + ' ' + M + ' ' + c * d }, { m: '= ' + num(r) }]; }
+      return auto(nbQ(disp, Q(r), { enonce: pt('Calcule : <strong>' + disp + '</strong>'), correction: { texte: 'D’abord les parenthèses, puis les multiplications, enfin les additions et soustractions.', lignes } }), 'priorites', 'Priorités opératoires');
+    }
+  ];
+
+  /* ---------- 2. Calcul littéral ---------- */
+  const autoExpr = (q, cat, consigne) => auto(Object.assign(q, { enonce: pt(consigne + ' <strong>' + q.enonce + '</strong>') }), cat, 'Calcul littéral');
+  const AUTO_LITTERAL = [
+    () => { // réduire (terme en x négatif une fois sur trois)
+      const veut = neg3(), f = rnd(1, 3); let terms;
+      if (f === 1) { let p, r; do { p = rnd(1, 9); r = rndNZ(-9, 9); } while (p + r === 0 || (p + r < 0) !== veut); terms = [X1(p, 'x'), T(rndNZ(-12, 12)), X1(r, 'x'), T(rndNZ(-12, 12))]; }
+      else if (f === 2) { let p, r; do { p = rnd(1, 6); r = rndNZ(-6, 6); } while (p + r === 0 || (p + r < 0) !== veut); terms = [X2(p, 'n'), X2(r, 'n'), X1(rndNZ(-9, 9), 'n'), T(rndNZ(-9, 9))]; }
+      else { // a x + b − k(x + c)
+        let a, k; do { a = rnd(2, 9); k = rnd(2, 6); } while (a === k || (a - k < 0) !== veut);
+        const b = rndNZ(-9, 9), c = rndNZ(-6, 6), interieur = [X1(1, 'x'), T(c)], dev = [X1(a, 'x'), T(b)].concat(interieur.map((t) => mulT(T(-k), t)));
+        const disp = fmtL([X1(a, 'x'), T(b)]) + ' ' + M + ' ' + k + par(interieur);
+        return autoExpr(exprQ(pick(NOMS), disp, dev, [{ m: disp }, { m: fmtL(dev), c: 'On distribue ' + M + k + '.' }, { m: fmtL(canon(dev)), c: 'On réduit.' }], 'On développe, puis on regroupe les termes de même nature.', ['x']), 'reduire', 'Réduis :');
+      }
+      const disp = fmtL(terms), L = terms.find((t) => degre(t.m)) ? Object.keys(terms.find((t) => degre(t.m)).m)[0] : 'x';
+      return autoExpr(exprQ(pick(NOMS), disp, terms, [{ m: disp }, { m: regroupe(terms), c: 'On regroupe les termes de même nature.' }, { m: fmtL(canon(terms)) }], 'On additionne les termes de même nature, en gardant leur signe.', [L]), 'reduire', 'Réduis :');
+    },
+    () => { // développer
+      const f = rnd(1, 3);
+      if (f === 1) { const B1 = [X1(1, 'x'), T(rndNZ(-9, 9))], B2 = [X1(1, 'x'), T(rndNZ(-9, 9))], dev = expand(B1, B2), disp = par(B1) + par(B2);
+        return autoExpr(exprQ(pick(NOMS), disp, dev, [{ m: disp }, { m: fmtL(dev) }, { m: fmtL(canon(dev)), c: 'On réduit.' }], TXT_DOUBLE, ['x']), 'developper', 'Développe et réduis :'); }
+      if (f === 2) { const a = X1(rnd(1, 6), 'x'), b = T(rnd(1, 9)), [P1, P2] = ordreHasard([a, b], [a, neg(b)]), dev = [carre(a), neg(carre(b))], disp = par(P1) + par(P2);
+        const q = exprQ(pick(NOMS), disp, dev, [{ m: disp }, { m: sq(a) + ' ' + M + ' ' + sq(b), c: '(a − b)(a + b) = a² − b²' }, { m: fmtL(dev) }], 'On reconnaît l’identité remarquable (a − b)(a + b) = a² − b².', ['x']);
+        return autoExpr(Object.assign(q, { reponseHTML: fmtL(dev) }), 'developper', 'Développe :'); }
+      const k = X1(pick([-3, -2, 2, 3, 4, 5]), 'x'), B = [X1(rndNZ(-5, 5), 'x'), T(rndNZ(-9, 9))], dev = B.map((t) => mulT(k, t)), disp = kAvant(k) + par(B);
+      return autoExpr(exprQ(pick(NOMS), disp, dev, [{ m: disp }, { m: fmtL(dev) }], 'On multiplie ' + fmtT(k, true) + ' par chaque terme de la parenthèse.', ['x']), 'developper', 'Développe :');
+    },
+    () => { // factoriser
+      if (Math.random() < 0.5) {
+        let a, b; do { a = X1(rnd(1, 6), 'x'); b = T(rnd(1, 9)); } while (gcd(a.c, b.c) !== 1);
+        const terms = [carre(a), neg(carre(b))], rep = par([a, b]) + par([a, neg(b)]);
+        const q = exprQ(pick(NOMS), fmtL(terms), terms, [{ m: fmtL(terms) }, { m: sq(a) + ' ' + M + ' ' + sq(b), c: 'a² − b² = (a + b)(a − b)' }, { m: rep }], 'On reconnaît a² − b², que l’on factorise en (a + b)(a − b).', ['x']);
+        return autoExpr(Object.assign(q, { facto: true, reponseHTML: rep }), 'factoriser', 'Factorise :');
+      }
+      let p, q; do { p = rnd(1, 9); q = rndNZ(-9, 9); } while (gcd(p, q) !== 1);
+      const k = T(rnd(2, 9)), inner = ordreHasard(X1(p, 'x'), T(q));
+      return autoExpr(factoQ(inner.map((t) => mulT(k, t)), k, inner, 'x'), 'factoriser', 'Factorise :');
+    },
+    () => { // résoudre une équation
+      const a = pick([-5, -4, -3, -2, 2, 3, 4, 5, 6, 7]), s = neg3() ? -rnd(1, 9) : rnd(1, 10), b = rndNZ(-15, 15), c = a * s + b, e = lin(a, b) + ' = ' + num(c);
+      return auto(nbQ(e, Q(s), { enonce: pt('Résous l’équation : <strong>' + e + '</strong>'), prefixe: 'x = ',
+        correction: { texte: 'On isole le terme en x, puis on divise par son coefficient.', lignes: [{ m: e }, { m: lin(a, 0) + ' = ' + num(c) + (b > 0 ? ' ' + M + ' ' + b : ' + ' + (-b)) }, { m: lin(a, 0) + ' = ' + num(c - b) }, { m: 'x = ' + F(num(c - b), num(a)) + ' = ' + num(s) }] } }), 'equation', 'Équations');
+    },
+    () => { // valeur d'une expression
+      const x = neg3() ? -rnd(1, 5) : rnd(1, 7), f = rnd(1, 2), xs = x < 0 ? '(' + num(x) + ')' : String(x);
+      let disp, r, calc;
+      if (f === 1) { const a = rndNZ(-6, 6), b = rndNZ(-9, 9); disp = lin(a, b); r = a * x + b; calc = (a === 1 ? '' : a === -1 ? M : num(a) + ' × ') + xs + (b > 0 ? ' + ' + b : ' ' + M + ' ' + (-b)); }
+      else { const a = rnd(1, 3), b = rndNZ(-9, 9); disp = (a === 1 ? '' : a) + 'x²' + (b > 0 ? ' + ' + b : ' ' + M + ' ' + (-b)); r = a * x * x + b; calc = (a === 1 ? '' : a + ' × ') + xs + '²' + (b > 0 ? ' + ' + b : ' ' + M + ' ' + (-b)); }
+      return auto(nbQ(disp, Q(r), { enonce: pt('Calcule <strong>A = ' + disp + '</strong> pour <strong>x = ' + num(x) + '</strong>.'), prefixe: 'A = ',
+        correction: { texte: 'On remplace x par ' + num(x) + ', sans oublier les parenthèses autour d’un nombre négatif.', lignes: [{ m: 'A = ' + calc }, { m: 'A = ' + num(r) }] } }), 'valeur', 'Calcul littéral');
+    },
+    () => { // programme de calcul → expression (QCM)
+      let k, a; do { k = rnd(2, 9); a = rnd(1, 9); } while (k === a);
+      const f = rnd(1, 4), signe = f >= 3 ? M : '+', verbe = f >= 3 ? 'Soustraire ' : 'Ajouter ';
+      const etapes = f % 2 === 1 ? ['Multiplier par ' + k, verbe + a] : [verbe + a, 'Multiplier par ' + k];
+      const e1 = k + 'x ' + signe + ' ' + a, e2 = k + '(x ' + signe + ' ' + a + ')', e3 = a + 'x ' + signe + ' ' + k, e4 = 'x ' + signe + ' ' + a + ' × ' + k;
+      const bonne = f % 2 === 1 ? 0 : 1;
+      return auto(qcmQ('Quelle expression correspond à ce programme de calcul, si on choisit le nombre x ?</p><p class="prog">Choisir un nombre<br>' + etapes.join('<br>'), [e1, e2, e3, e4], bonne,
+        'On applique les étapes dans l’ordre au nombre x.', [{ m: 'x → ' + (f % 2 === 1 ? k + 'x → ' + e1 : 'x ' + signe + ' ' + a + ' → ' + e2) }]), 'programme', 'Programme de calcul');
+    },
+    () => { // équation produit nul (QCM)
+      let r1, r2; do { r1 = rndNZ(-9, 9); r2 = rndNZ(-6, 6); } while (Math.abs(r1) === Math.abs(r2));
+      const b = pick([1, 2, 3]), e = '(' + lin(1, -r1) + ')(' + lin(b, -b * r2) + ') = 0';
+      const opt = (u, v) => 'x = ' + num(u) + ' ou x = ' + num(v);
+      return auto(qcmQ('Quelles sont les solutions de l’équation <strong>' + e + '</strong> ?', [opt(r1, r2), opt(-r1, -r2), opt(r1, -r2), opt(-r1, r2)], 0,
+        'Un produit est nul si l’un au moins de ses facteurs est nul.', [{ m: lin(1, -r1) + ' = 0 ou ' + lin(b, -b * r2) + ' = 0' }, { m: 'x = ' + num(r1) + ' ou x = ' + num(r2) }]), 'produit-nul', 'Équations');
+    }
+  ];
+
+  /* ---------- 3. Fonctions et données ---------- */
+  function grapheDroite(m, p) {
+    const u = 20, x0 = -4, x1 = 5, y0 = -4, y1 = 5, W = (x1 - x0) * u + 30, H = (y1 - y0) * u + 20, X = (x) => 15 + (x - x0) * u, Y = (y) => 10 + (y1 - y) * u;
+    let s = '<svg class="graph" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Représentation graphique de la fonction f">';
+    for (let x = x0; x <= x1; x++) s += '<line class="g-grille" x1="' + X(x) + '" y1="' + Y(y0) + '" x2="' + X(x) + '" y2="' + Y(y1) + '"/>';
+    for (let y = y0; y <= y1; y++) s += '<line class="g-grille" x1="' + X(x0) + '" y1="' + Y(y) + '" x2="' + X(x1) + '" y2="' + Y(y) + '"/>';
+    s += '<line class="g-axe" x1="' + X(x0) + '" y1="' + Y(0) + '" x2="' + X(x1) + '" y2="' + Y(0) + '"/><line class="g-axe" x1="' + X(0) + '" y1="' + Y(y0) + '" x2="' + X(0) + '" y2="' + Y(y1) + '"/>';
+    for (let x = x0; x <= x1; x++) if (x) s += '<text x="' + X(x) + '" y="' + (Y(0) + 12) + '" text-anchor="middle">' + num(x) + '</text>';
+    for (let y = y0; y <= y1; y++) if (y) s += '<text x="' + (X(0) - 4) + '" y="' + (Y(y) + 4) + '" text-anchor="end">' + num(y) + '</text>';
+    // segment de droite limité au cadre
+    const pts = []; for (let x = x0; x <= x1; x += 0.05) { const y = m * x + p; if (y >= y0 && y <= y1) pts.push([X(x), Y(y)]); }
+    if (pts.length) s += '<line class="g-courbe" x1="' + pts[0][0].toFixed(1) + '" y1="' + pts[0][1].toFixed(1) + '" x2="' + pts[pts.length - 1][0].toFixed(1) + '" y2="' + pts[pts.length - 1][1].toFixed(1) + '"/>';
+    return s + '</svg>';
+  }
+  function grapheBarres(eff, titreX) {
+    const u = 16, n = eff.length, W = 40 + n * 44, max = Math.max(...eff, 1), top = Math.ceil(max / 2) * 2 + 2, H = top * u + 40, Y = (v) => 10 + (top - v) * u;
+    let s = '<svg class="graph" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Diagramme en barres">';
+    for (let v = 0; v <= top; v++) s += '<line class="g-grille" x1="32" y1="' + Y(v) + '" x2="' + (W - 6) + '" y2="' + Y(v) + '"/>' + (v % 2 === 0 ? '<text x="27" y="' + (Y(v) + 4) + '" text-anchor="end">' + v + '</text>' : '');
+    eff.forEach((e, i) => { const x = 40 + i * 44; s += '<rect class="g-barre" x="' + x + '" y="' + Y(e) + '" width="28" height="' + (e * u) + '"/><text x="' + (x + 14) + '" y="' + (Y(0) + 14) + '" text-anchor="middle">' + i + '</text>'; });
+    s += '<line class="g-axe" x1="32" y1="' + Y(0) + '" x2="' + (W - 6) + '" y2="' + Y(0) + '"/><text class="g-titre" x="' + (W / 2) + '" y="' + (H - 4) + '" text-anchor="middle">' + titreX + '</text>';
+    return s + '</svg>';
+  }
+  const AUTO_FONCTIONS = [
+    () => { // image par le calcul
+      const a = rndNZ(-6, 6), b = rndNZ(-9, 9), x = rndNZ(-6, 6), r = a * x + b, xs = x < 0 ? '(' + num(x) + ')' : String(x);
+      return auto(nbQ('', Q(r), { enonce: pt('On considère la fonction <strong>f(x) = ' + lin(a, b) + '</strong>. Calcule l’image de <strong>' + num(x) + '</strong>.'), prefixe: 'f(' + num(x) + ') = ',
+        correction: { texte: 'On remplace x par ' + num(x) + ' dans l’expression de f.', lignes: [{ m: 'f(' + num(x) + ') = ' + (a === 1 ? '' : a === -1 ? M : num(a) + ' × ') + xs + (b > 0 ? ' + ' + b : ' ' + M + ' ' + (-b)) }, { m: 'f(' + num(x) + ') = ' + num(r) }] } }), 'image', 'Fonctions');
+    },
+    () => { // lecture graphique : image ou antécédent
+      let m, p, x, y;
+      do { m = pick([-2, -1, 1, 2, 0.5, -0.5]); p = rnd(-2, 3); x = rnd(-3, 4); y = m * x + p; } while (!Number.isInteger(y) || y < -4 || y > 5 || x === 0);
+      const image = Math.random() < 0.55;
+      return auto(nbQ('', Q(image ? y : x), { prefixe: image ? 'f(' + num(x) + ') = ' : 'x = ',
+        enonce: pt('La droite représente la fonction f. ' + (image ? 'Lis l’<strong>image de ' + num(x) + '</strong> par f.' : 'Lis l’<strong>antécédent de ' + num(y) + '</strong> par f.')) + grapheDroite(m, p),
+        correction: { texte: image ? 'On part de ' + num(x) + ' sur l’axe des abscisses, on va jusqu’à la droite, puis on lit l’ordonnée du point.' : 'On part de ' + num(y) + ' sur l’axe des ordonnées, on va jusqu’à la droite, puis on lit l’abscisse du point.',
+          lignes: [{ m: 'Le point (' + num(x) + ' ; ' + num(y) + ') est sur la droite.' }, { m: image ? 'f(' + num(x) + ') = ' + num(y) : 'L’antécédent de ' + num(y) + ' est ' + num(x) + '.' }] } }), 'lecture-graphique', 'Fonctions');
+    },
+    () => { // moyenne
+      let notes, mo; do { mo = rnd(8, 15); notes = Array.from({ length: 4 }, () => rnd(5, 20)); notes.push(5 * mo - notes.reduce((s, v) => s + v, 0)); } while (notes[4] < 0 || notes[4] > 20);
+      notes = shuffle(notes);
+      return auto(nbQ('', Q(mo), { enonce: pt('Voici les notes d’un élève : <span class="liste">' + notes.join(' ; ') + '</span>. Quelle est sa moyenne ?'), prefixe: 'Moyenne = ', clavier: ',',
+        correction: { texte: 'Moyenne = somme des valeurs ÷ nombre de valeurs.', lignes: [{ m: '(' + notes.join(' + ') + ') ÷ 5' }, { m: '= ' + (5 * mo) + ' ÷ 5 = ' + mo }] } }), 'moyenne', 'Statistiques');
+    },
+    () => { // médiane
+      const n = pick([5, 7]), v = Array.from({ length: n }, () => rnd(2, 30)), triee = v.slice().sort((a, b) => a - b), med = triee[(n - 1) / 2];
+      return auto(nbQ('', Q(med), { enonce: pt('Donne la médiane de la série : <span class="liste">' + v.join(' ; ') + '</span>'), prefixe: 'Médiane = ',
+        correction: { texte: 'On range les valeurs dans l’ordre croissant ; la médiane est la valeur du milieu (la ' + ((n + 1) / 2) + 'e sur ' + n + ').', lignes: [{ m: triee.join(' ; ') }, { m: 'Médiane = ' + med }] } }), 'mediane', 'Statistiques');
+    },
+    () => { // étendue (températures, parfois négatives)
+      const negatives = neg3(), v = Array.from({ length: 6 }, () => (negatives ? rnd(-8, 12) : rnd(5, 30))), e = Math.max(...v) - Math.min(...v);
+      return auto(nbQ('', Q(e), { enonce: pt('Voici des températures relevées (en °C) : <span class="liste">' + v.map(num).join(' ; ') + '</span>. Quelle est l’étendue de cette série ?'), prefixe: 'Étendue = ', suffixe: '°C',
+        correction: { texte: 'Étendue = plus grande valeur − plus petite valeur.', lignes: [{ m: num(Math.max(...v)) + ' ' + M + ' ' + (Math.min(...v) < 0 ? '(' + num(Math.min(...v)) + ')' : Math.min(...v)) + ' = ' + e }] } }), 'etendue', 'Statistiques');
+    },
+    () => { // diagramme en barres
+      const eff = Array.from({ length: 5 }, () => rnd(1, 9)), f = rnd(1, 3), k = rnd(1, 3);
+      const total = eff.reduce((s, v) => s + v, 0), auMoins = eff.slice(k).reduce((s, v) => s + v, 0);
+      const quest = f === 1 ? 'Combien d’élèves ont <strong>au moins ' + k + '</strong> frère(s) et sœur(s) ?' : f === 2 ? 'Combien d’élèves ont <strong>exactement ' + k + '</strong> frère(s) et sœur(s) ?' : 'Combien d’élèves ont répondu en tout ?';
+      const r = f === 1 ? auMoins : f === 2 ? eff[k] : total;
+      return auto(nbQ('', Q(r), { prefixe: '= ', suffixe: 'élèves', enonce: pt('On a demandé aux élèves d’une classe leur nombre de frères et sœurs. ' + quest) + grapheBarres(eff, 'Nombre de frères et sœurs'),
+        correction: { texte: 'On lit la hauteur de chaque barre sur l’axe vertical.', lignes: [{ m: f === 1 ? eff.slice(k).join(' + ') + ' = ' + r : f === 2 ? 'Barre « ' + k + ' » : ' + r : eff.join(' + ') + ' = ' + r }] } }), 'diagramme', 'Statistiques');
+    },
+    () => { // probabilités
+      if (Math.random() < 0.55) {
+        const c = { rouges: rnd(1, 9), bleues: rnd(1, 9), vertes: rnd(1, 9) }, coul = pick(Object.keys(c)), tot = c.rouges + c.bleues + c.vertes, r = Q(c[coul], tot);
+        return auto(nbQ('', r, { enonce: pt('Un sac contient ' + c.rouges + ' boules rouges, ' + c.bleues + ' boules bleues et ' + c.vertes + ' boules vertes. On tire une boule au hasard. Quelle est la probabilité de tirer une boule <strong>' + coul.slice(0, -1) + '</strong> ?'), prefixe: 'p = ', clavier: '/', irreductible: true,
+          correction: { texte: 'Probabilité = nombre de cas favorables ÷ nombre de cas possibles.', lignes: [{ m: 'p = ' + F(c[coul], tot) + (r.d !== tot ? ' = ' + fracRes(r) : '') }] } }), 'probabilite', 'Probabilités');
+      }
+      const mots = ['MATHEMATIQUES', 'COLLEGE', 'BREVET', 'FRACTION', 'EQUATION', 'GEOMETRIE', 'NOMBRE', 'CALCUL', 'DIVISEUR', 'TRIANGLE'], mot = pick(mots), voy = mot.split('').filter((l) => 'AEIOU'.includes(l)).length, voyelle = Math.random() < 0.7;
+      const fav = voyelle ? voy : mot.length - voy, r = Q(fav, mot.length);
+      return auto(nbQ('', r, { enonce: pt('On choisit au hasard une lettre du mot <strong>' + mot + '</strong>. Quelle est la probabilité d’obtenir une <strong>' + (voyelle ? 'voyelle' : 'consonne') + '</strong> ?'), prefixe: 'p = ', clavier: '/', irreductible: true,
+        correction: { texte: 'Le mot a ' + mot.length + ' lettres, dont ' + fav + ' ' + (voyelle ? 'voyelles' : 'consonnes') + '.', lignes: [{ m: 'p = ' + F(fav, mot.length) + (r.d !== mot.length ? ' = ' + fracRes(r) : '') }] } }), 'probabilite', 'Probabilités');
+    }
+  ];
+
+  /* ---------- 4. Géométrie ---------- */
+  function figureThales(lab) {
+    const A = [40, 26], D = [60, 182], E = [250, 150], t = 0.5, B = [A[0] + (D[0] - A[0]) * t, A[1] + (D[1] - A[1]) * t], C = [A[0] + (E[0] - A[0]) * t, A[1] + (E[1] - A[1]) * t];
+    const l = (p, q) => '<line x1="' + p[0] + '" y1="' + p[1] + '" x2="' + q[0] + '" y2="' + q[1] + '" class="fig-tri"/>';
+    const tx = (p, s, dx, dy, cls) => '<text x="' + (p[0] + dx) + '" y="' + (p[1] + dy) + '" class="' + (cls || 'fig-sommet') + '">' + s + '</text>';
+    const mil = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    return '<svg class="fig" viewBox="0 0 280 200" role="img" aria-label="Configuration de Thalès">' + l(A, D) + l(A, E) + l(D, E) + l(B, C) +
+      tx(A, 'A', -10, -2) + tx(B, 'B', -12, 6) + tx(C, 'C', 4, -6) + tx(D, 'D', -6, 16) + tx(E, 'E', 10, 6) +
+      tx(mil(A, B), lab.AB, -26, 4, 'fig-long') + tx(mil(A, D), '', 0, 0, 'fig-long') + tx(mil(B, C), lab.BC, 0, -6, 'fig-long') + tx(mil(D, E), lab.DE, 4, 18, 'fig-long' + (lab.DE === '?' ? ' fig-inc' : '')) + tx(mil(B, D), lab.BD, -24, 6, 'fig-long') + '</svg>';
+  }
+  const AUTO_GEOMETRIE = [
+    () => auto(questionEgalite(Math.random() < 0.5), 'pythagore-egalite', 'Théorème de Pythagore'),
+    () => { // Pythagore avec un triplet simple (de tête)
+      const [a, b, h] = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13], [9, 12, 15], [12, 16, 20], [8, 15, 17]]);
+      return auto(questionPythagore(Math.random() < 0.6 ? 'hyp' : 'cote', { a: a * 100, b: b * 100, h: h * 100 }, false, Math.random() < 0.5), 'pythagore-calcul', 'Théorème de Pythagore');
+    },
+    () => auto(questionReciproque(true), 'reciproque', 'Réciproque de Pythagore'),
+    () => { // Thalès
+      const ab = rnd(2, 6), k = pick([2, 3, 1.5, 2.5]), ad = r3(ab * k), bc = rnd(2, 7), de = r3(bc * k);
+      const avecFig = Math.random() < 0.7, bd = r3(ad - ab), donneBD = avecFig && Math.random() < 0.4;
+      const txtL = donneBD ? 'AB = ' + dv(ab) + ' cm, BD = ' + dv(bd) + ' cm et BC = ' + dv(bc) + ' cm' : 'AB = ' + dv(ab) + ' cm, AD = ' + dv(ad) + ' cm et BC = ' + dv(bc) + ' cm';
+      const enonce = pt('Les points A, B, D sont alignés, ainsi que A, C, E. Les droites (BC) et (DE) sont parallèles. ' + txtL + '. <strong>Calcule DE.</strong>') +
+        (avecFig ? figureThales({ AB: dv(ab), BC: dv(bc), DE: '?', BD: donneBD ? dv(bd) : '' }) : '');
+      const lignes = [{ m: 'AB / AD = AC / AE = BC / DE', c: 'D’après le théorème de Thalès.' }];
+      if (donneBD) lignes.unshift({ m: 'AD = AB + BD = ' + dv(ab) + ' + ' + dv(bd) + ' = ' + dv(ad) + ' cm' });
+      lignes.push({ m: dv(ab) + ' / ' + dv(ad) + ' = ' + dv(bc) + ' / DE' }, { m: 'DE = ' + dv(bc) + ' × ' + dv(ad) + ' ÷ ' + dv(ab) + ' = ' + dv(de) + ' cm' });
+      return auto({ type: 'nombre', decimal: true, enonce, reponse: decQ(de), prefixe: 'DE = ', suffixe: 'cm', clavier: ',', correction: { texte: 'Les droites (BD) et (CE) sont sécantes en A et (BC) // (DE) : on peut utiliser le théorème de Thalès.', lignes } }, 'thales', 'Théorème de Thalès');
+    },
+    () => { // trigonométrie : quel quotient ? (QCM)
+      const droit = pick(SOMMETS), [V, W] = shuffle(SOMMETS.filter((s) => s !== droit)), adj = cote(V, droit), opp = cote(W, droit), hyp = cote(V, W);
+      const fn = pick(['cos', 'sin', 'tan']), q = { cos: [adj, hyp], sin: [opp, hyp], tan: [opp, adj] }[fn];
+      const opts = [[adj, hyp], [opp, hyp], [opp, adj], [adj, opp]], bonne = opts.findIndex((o) => o[0] === q[0] && o[1] === q[1]);
+      const angle = 'l’angle ' + V + '̂';
+      return auto(qcmQ('Le triangle ABC est rectangle en ' + droit + '. Quel quotient est égal ' + (fn === 'cos' ? 'au <strong>cosinus' : fn === 'sin' ? 'au <strong>sinus' : 'à la <strong>tangente') + ' de ' + angle + '</strong> ?</p>' +
+        figureTriangle(droit, { long: { AB: 1, AC: rnd(8, 14) / 10, BC: rnd(8, 14) / 10 }, txt: {} }) + '<p class="txt">', opts.map((o) => F(o[0], o[1])), bonne,
+        'Pour ' + angle + ' : côté adjacent [' + adj + '], côté opposé [' + opp + '], hypoténuse [' + hyp + ']. cos = adjacent ÷ hypoténuse ; sin = opposé ÷ hypoténuse ; tan = opposé ÷ adjacent.',
+        [{ m: fn + ' ' + V + '̂ = ' + F(q[0], q[1]) }]), 'trigo', 'Trigonométrie');
+    },
+    () => { // carré, rectangle : aire et périmètre
+      const f = rnd(1, 3);
+      if (f === 1) { const c = rnd(2, 12); return auto(nbQ('', Q(4 * c), { enonce: pt('Un carré a une aire de <strong>' + c * c + ' cm²</strong>. Quel est son périmètre ?'), prefixe: 'P = ', suffixe: 'cm', correction: { texte: 'On cherche d’abord le côté : le nombre dont le carré vaut ' + c * c + '.', lignes: [{ m: 'côté = ' + c + ' cm, car ' + c + ' × ' + c + ' = ' + c * c }, { m: 'P = 4 × ' + c + ' = ' + 4 * c + ' cm' }] } }), 'aire-perimetre', 'Aires et périmètres'); }
+      if (f === 2) { const c = rnd(2, 12); return auto(nbQ('', Q(c * c), { enonce: pt('Un carré a un périmètre de <strong>' + 4 * c + ' cm</strong>. Quelle est son aire ?'), prefixe: 'A = ', suffixe: 'cm²', correction: { texte: 'Le côté vaut le quart du périmètre.', lignes: [{ m: 'côté = ' + 4 * c + ' ÷ 4 = ' + c + ' cm' }, { m: 'A = ' + c + ' × ' + c + ' = ' + c * c + ' cm²' }] } }), 'aire-perimetre', 'Aires et périmètres'); }
+      const L = rnd(3, 15), l = rnd(2, L - 1);
+      return auto(nbQ('', Q(L * l), { enonce: pt('Quelle est l’aire d’un rectangle de longueur <strong>' + L + ' cm</strong> et de largeur <strong>' + l + ' cm</strong> ?'), prefixe: 'A = ', suffixe: 'cm²', correction: { texte: 'Aire d’un rectangle = longueur × largeur.', lignes: [{ m: 'A = ' + L + ' × ' + l + ' = ' + L * l + ' cm²' }] } }), 'aire-perimetre', 'Aires et périmètres');
+    },
+    () => { // formules et volume (QCM)
+      const f = rnd(1, 3);
+      if (f === 1) return auto(qcmQ('Quelle formule permet de calculer le <strong>périmètre d’un cercle</strong> de rayon r ?', ['2 × π × r', 'π × r²', 'π × r', '2 × π × r²'], 0, 'Périmètre d’un cercle = 2 × π × r (ou π × diamètre).', [{ m: 'P = 2 × π × r' }]), 'formules', 'Grandeurs et mesures');
+      if (f === 2) return auto(qcmQ('Quelle formule permet de calculer l’<strong>aire d’un disque</strong> de rayon r ?', ['π × r²', '2 × π × r', 'π × r', '2 × π × r²'], 0, 'Aire d’un disque = π × r × r.', [{ m: 'A = π × r²' }]), 'formules', 'Grandeurs et mesures');
+      let r, h, vals; do { r = rnd(2, 5); h = rnd(2, 10); vals = [r * r * h, 2 * r * h, r * h, r * h * h]; } while (new Set(vals).size < 4);
+      return auto(qcmQ('Quel est le <strong>volume exact</strong> d’un cylindre de rayon <strong>' + r + ' cm</strong> et de hauteur <strong>' + h + ' cm</strong> ?', vals.map((v) => v + 'π cm³'), 0,
+        'Volume d’un cylindre = aire de la base × hauteur = π × r² × h.', [{ m: 'V = π × ' + r + '² × ' + h + ' = ' + (r * r * h) + 'π cm³' }]), 'formules', 'Grandeurs et mesures');
+    },
+    () => { // angles
+      if (Math.random() < 0.6) {
+        const a = rnd(20, 100), b = rnd(20, 150 - a);
+        return auto(nbQ('', Q(180 - a - b), { enonce: pt('Dans un triangle, deux angles mesurent <strong>' + a + '°</strong> et <strong>' + b + '°</strong>. Combien mesure le troisième angle ?'), prefixe: '= ', suffixe: '°', clavier: '',
+          correction: { texte: 'La somme des angles d’un triangle est égale à 180°.', lignes: [{ m: '180 ' + M + ' ' + a + ' ' + M + ' ' + b + ' = ' + (180 - a - b) + '°' }] } }), 'angles', 'Angles');
+      }
+      const n = pick([3, 4, 5, 6, 8, 9, 10, 12]), noms = { 3: 'triangle équilatéral', 4: 'carré', 5: 'pentagone régulier', 6: 'hexagone régulier', 8: 'octogone régulier', 9: 'ennéagone régulier', 10: 'décagone régulier', 12: 'dodécagone régulier' };
+      return auto(nbQ('', Q(360 / n), { enonce: pt('Quelle est la mesure de l’<strong>angle au centre</strong> d’un ' + noms[n] + ' (' + n + ' côtés) ?'), prefixe: '= ', suffixe: '°', clavier: '',
+        correction: { texte: 'Les ' + n + ' angles au centre sont égaux et font un tour complet : 360°.', lignes: [{ m: '360 ÷ ' + n + ' = ' + 360 / n + '°' }] } }), 'angles', 'Angles');
+    }
+  ];
+  const AUTO_PARTIES = [AUTO_NOMBRES, AUTO_LITTERAL, AUTO_FONCTIONS, AUTO_GEOMETRIE];
+
+  /* =====================================================================
      THÈMES
      ===================================================================== */
   const THEMES = [
+    /* ---------------- Automatismes du brevet ---------------- */
+    {
+      id: 'automatismes', classes: ['3e'], domaine: 'Automatismes', parties: true,
+      titre: 'Automatismes du brevet',
+      resume: 'Des questions courtes et variées, comme au brevet. Choisis une partie, ou mélange tout.',
+      consigne: 'Automatisme', rappel: 'Sans calculatrice !',
+      niveaux: [
+        { nom: 'Nombres et calculs', court: 'Nombres', gen: () => pick(AUTO_NOMBRES)() },
+        { nom: 'Calcul littéral', court: 'Littéral', gen: () => pick(AUTO_LITTERAL)() },
+        { nom: 'Fonctions et données', court: 'Fonctions', gen: () => pick(AUTO_FONCTIONS)() },
+        { nom: 'Géométrie', court: 'Géométrie', gen: () => pick(AUTO_GEOMETRIE)() },
+        { nom: 'Tout mélangé', court: 'Mélange', gen: () => pick(pick(AUTO_PARTIES))() }
+      ]
+    },
+
     /* ---------------- Calcul littéral ---------------- */
     {
       id: 'simplifier-expr', classes: ['4e', '3e'], domaine: 'Calcul littéral',

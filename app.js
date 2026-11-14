@@ -16,6 +16,8 @@
     get(k, def) { try { const v = localStorage.getItem('gc:' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
     set(k, v) { try { localStorage.setItem('gc:' + k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } }
   };
+  // Un exerciseur organisé en « parties » (ex. automatismes) n'affiche pas d'étoiles de difficulté.
+  const avecEtoiles = (t) => t.niveaux.length > 1 && !t.parties;
   const stars = (n) => '★'.repeat(n) + '<span class="off">' + '★'.repeat(3 - n) + '</span>';
   const tone = (s, t) => { const p = s / t; return p >= 0.8 ? 'ok' : p >= 0.5 ? 'mid' : 'ko'; };
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -122,7 +124,7 @@
     grid.innerHTML = domaines.map((d) => '<section class="domaine"><h2>' + esc(d) + '</h2><div class="grid">' + liste.filter((t) => t.domaine === d).map((t) => {
       const prog = t.niveaux.map((lv, i) => {
         const b = store.get('best:' + t.id + ':' + (i + 1), null);
-        return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + '★'.repeat(i + 1) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>';
+        return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + (t.parties ? esc(lv.court || lv.nom) : '★'.repeat(i + 1)) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>';
       }).join('') + ((ec) => (ec ? '<span class="pill pause">En pause · question ' + questionEnCours(ec) + '/' + ec.n + '</span>' : ''))(lireEnCours(t));
       return '<a class="card theme" href="#ex-' + t.id + '"><h3>' + esc(t.titre) + '</h3><p>' + esc(t.resume) + '</p>' +
         '<div class="prog" aria-label="Tes meilleurs scores">' + prog + '</div></a>';
@@ -136,14 +138,14 @@
     const moi = getMoi(), ec = lireEnCours(t);
     app.innerHTML =
       '<div class="wrap"><a class="btn btn-ghost back" href="#">← Tous les exerciseurs</a>' +
-      '<div class="thead"><span class="eyebrow">' + esc(t.domaine) + ' · ' + t.classes.join(', ') + '</span><h1>' + esc(t.titre) + '</h1><p>' + esc(t.resume) + (t.niveaux.length > 1 ? ' Choisis ta difficulté : une' : ' Une') + ' série compte ' + C.nbQuestions + ' questions.</p></div>' +
+      '<div class="thead"><span class="eyebrow">' + esc(t.domaine) + ' · ' + t.classes.join(', ') + '</span><h1>' + esc(t.titre) + '</h1><p>' + esc(t.resume) + (t.parties ? ' Choisis une partie : une' : t.niveaux.length > 1 ? ' Choisis ta difficulté : une' : ' Une') + ' série compte ' + C.nbQuestions + ' questions.</p></div>' +
       '<div id="identzone"></div>' + (ec
-        ? '<div class="card reprise"><div><strong>Série en pause</strong><span class="sub">' + stars(ec.lvl) + ' ' + esc(t.niveaux[ec.lvl - 1].nom) + ' · question ' + questionEnCours(ec) + '/' + ec.n + ' · ' + ec.score + (ec.score > 1 ? ' bonnes réponses' : ' bonne réponse') + '</span>' +
+        ? '<div class="card reprise"><div><strong>Série en pause</strong><span class="sub">' + (avecEtoiles(t) ? stars(ec.lvl) + ' ' : '') + esc(t.niveaux[ec.lvl - 1].nom) + ' · question ' + questionEnCours(ec) + '/' + ec.n + ' · ' + ec.score + (ec.score > 1 ? ' bonnes réponses' : ' bonne réponse') + '</span>' +
           '<span class="sub">Commencer une nouvelle série remplacera celle-ci.</span></div><div class="btn-row"><button class="btn btn-primary" id="reprendre">Reprendre</button><button class="btn btn-ghost" id="abandon">Abandonner</button></div></div>'
         : '') + '<div class="levels">' +
       t.niveaux.map((lv, i) => {
         const b = store.get('best:' + t.id + ':' + (i + 1), null);
-        return '<button class="card level" data-l="' + (i + 1) + '"><span class="stars" aria-label="Niveau ' + (i + 1) + '">' + (t.niveaux.length > 1 ? stars(i + 1) : '') + '</span>' +
+        return '<button class="card level' + (avecEtoiles(t) ? '' : ' sans-etoiles') + '" data-l="' + (i + 1) + '">' + (avecEtoiles(t) ? '<span class="stars" aria-label="Niveau ' + (i + 1) + '">' + stars(i + 1) + '</span>' : '') +
           '<span><strong>' + esc(lv.nom) + '</strong><span class="sub">' + (b ? 'Ton meilleur score : ' + b.s + '/' + b.t : 'Pas encore essayé') + '</span></span><span aria-hidden="true">›</span></button>';
       }).join('') + '</div>' +
       (C.urlScript ? '' : '<p class="notice">Mode démonstration : les résultats ne sont pas encore envoyés au professeur.</p>') + '</div>';
@@ -168,7 +170,13 @@
 
   function nouvelleQuestion(t, lvl, deja) {
     // évite deux énoncés identiques dans la même série
-    for (let k = 0; k < 30; k++) { const q = t.niveaux[lvl - 1].gen(); if (!deja.has(q.enonce)) return q; }
+    // évite aussi deux questions du même type (q.cat) dans une même série, tant que c'est possible
+    for (let k = 0; k < 40; k++) {
+      const q = t.niveaux[lvl - 1].gen();
+      if (deja.has(q.enonce)) continue;
+      if (q.cat && S && S.cats && S.cats.has(q.cat) && k < 35) continue;
+      return q;
+    }
     return t.niveaux[lvl - 1].gen();
   }
 
@@ -183,17 +191,17 @@
   const questionEnCours = (e) => Math.min(e.i + (e.repondu ? 2 : 1), e.n);
   function sauver() {
     const k = cleEnCours(S.t);
-    if (k) store.set(k, { lvl: S.lvl, i: S.i, n: S.n, score: S.score, serie: S.serie, meilleureSerie: S.meilleureSerie, ecoule: Date.now() - S.debut, vus: [...S.vus], hist: S.hist, q: S.q, repondu: S.repondu, date: Date.now() });
+    if (k) store.set(k, { lvl: S.lvl, i: S.i, n: S.n, score: S.score, serie: S.serie, meilleureSerie: S.meilleureSerie, ecoule: Date.now() - S.debut, vus: [...S.vus], cats: [...(S.cats || [])], hist: S.hist, q: S.q, repondu: S.repondu, date: Date.now() });
   }
   function effacer(t) { const k = cleEnCours(t); try { if (k) localStorage.removeItem('gc:' + k); } catch (e) { /* */ } }
   function reprendre(t, e) {
     // le temps passé hors de la série n'est pas compté
-    S = Object.assign({}, e, { t, vus: new Set(e.vus), debut: Date.now() - e.ecoule });
+    S = Object.assign({}, e, { t, vus: new Set(e.vus), cats: new Set(e.cats || []), debut: Date.now() - e.ecoule });
     if (e.repondu) suivante(); else poser(e.q);
   }
 
   function demarrer(t, lvl) {
-    S = { t, lvl, i: 0, n: C.nbQuestions, score: 0, serie: 0, meilleureSerie: 0, debut: Date.now(), vus: new Set(), hist: [] };
+    S = { t, lvl, i: 0, n: C.nbQuestions, score: 0, serie: 0, meilleureSerie: 0, debut: Date.now(), vus: new Set(), cats: new Set(), hist: [] };
     poser();
   }
 
@@ -218,6 +226,7 @@
     const { t, lvl } = S;
     S.q = qx || nouvelleQuestion(t, lvl, S.vus);
     S.vus.add(S.q.enonce);
+    if (S.q.cat) S.cats.add(S.q.cat);
     S.saisie = '';
     S.repondu = false;
     S.etape = 0;
@@ -260,7 +269,7 @@
       '<span class="count">' + (S.i + 1) + '/' + S.n + '</span><div class="track"><i style="width:' + (S.i / S.n * 100) + '%"></i></div>' +
       '<span class="score">✓ ' + S.score + '</span></div>' +
       '<div id="quitzone"></div>' +
-      '<section class="sheet"><div class="consigne">' + esc(S.q.consigne || t.consigne) + (t.niveaux.length > 1 ? ' <span aria-hidden="true">' + stars(lvl) + '</span>' : '') + '</div>' +
+      '<section class="sheet"><div class="consigne">' + esc(S.q.consigne || t.consigne) + (avecEtoiles(t) ? ' <span aria-hidden="true">' + stars(lvl) + '</span>' : '') + '</div>' +
       '<div class="enonce">' + S.q.enonce + '</div>' +
       '<div class="answer" id="ans"><span class="pre">' + esc(S.q.prefixe != null ? S.q.prefixe : estChoix() ? '' : (t.prefixe || '= ')) + '</span><span class="box" id="box"></span>' + (S.q.suffixe ? '<span class="suf">' + esc(S.q.suffixe) + '</span>' : '') + '</div></section>' +
       '<p class="hint" id="hint"></p>' +
@@ -589,7 +598,7 @@
     const recap = S.hist.map((h, i) => '<li><span class="n">' + (i + 1) + '.</span><span>' + h.enonce + '</span><span class="' + (h.juste ? 'ok">✓' : 'ko">✗ ' + h.att) + '</span></li>').join('');
     app.innerHTML =
       '<div class="wrap"><div class="end">' +
-      '<span class="eyebrow">' + esc(t.titre) + ' · ' + stars(lvl) + ' ' + esc(t.niveaux[lvl - 1].nom) + '</span>' +
+      '<span class="eyebrow">' + esc(t.titre) + ' · ' + (avecEtoiles(t) ? stars(lvl) + ' ' : '') + esc(t.niveaux[lvl - 1].nom) + '</span>' +
       '<div class="big">' + score + '<small>/' + n + '</small></div><h1>' + titre + '</h1>' +
       '<div class="stats"><div class="card stat"><b>' + fmtDuree(duree) + '</b><span>Temps</span></div><div class="card stat"><b>' + S.meilleureSerie + '</b><span>Meilleure série</span></div></div>' +
       '<p class="send" id="send">' + (C.urlScript ? 'Envoi du résultat à ton professeur…' : 'Mode démonstration : le résultat n’est pas envoyé.') + '</p>' +

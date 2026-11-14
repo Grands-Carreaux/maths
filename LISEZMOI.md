@@ -233,6 +233,22 @@ Les nombres sont choisis pour que les résultats tombent juste ; seuls quelques 
 explicitement un arrondi au dixième. Les réponses en « h min » se tapent avec les touches h, min et s du clavier.
 Rappel « Prépare ta calculatrice ! » à l'ouverture de l'exerciseur.
 
+### Automatismes du brevet (3e uniquement)
+
+Questions courtes et variées, **sans calculatrice** (rappel à l'ouverture). Pas d'étoiles : l'élève choisit une **partie**.
+Dans une série, deux questions du même type ne tombent pas deux fois tant que c'est possible. Environ une question sur trois
+a un résultat ou un terme négatif dans les parties 1 et 2.
+
+| Partie | Exemples de questions |
+|---|---|
+| Nombres et calculs | simplifier une fraction ; somme, produit, quotient de fractions (signes − possibles) ; relatifs, (−3)² et −3² ; 40 % de 200, prix après une baisse ; un diviseur de 150 (QCM) ; 5□7 divisible par 9 ; 57 est-il premier ? ; décomposition en facteurs premiers (QCM) ; tableau de proportionnalité ; le plus petit nombre (QCM) ; priorités |
+| Calcul littéral | réduire (2x + 3 − 5x + 8 ; 7x − 3 − 2(x − 5)) ; développer ; factoriser (4x + 8 ; x² − 16) ; résoudre 4x + 7 = 19 ; valeur pour x = −3 ; programme de calcul (QCM) ; équation produit nul (QCM) |
+| Fonctions et données | image par le calcul ; image ou antécédent lus sur une droite dessinée ; moyenne, médiane, étendue ; diagramme en barres ; probabilités (sac de boules, lettres d'un mot) |
+| Géométrie | égalité de Pythagore (QCM) ; Pythagore avec des nombres simples ; réciproque ; Thalès (avec ou sans figure) ; quotient du cosinus, du sinus ou de la tangente (QCM) ; aires et périmètres ; formules du cercle, volume d'un cylindre (QCM) ; angles d'un triangle, angle au centre d'un polygone régulier |
+| Tout mélangé | 10 questions tirées dans les 4 parties |
+
+À venir : Scratch, transformations, puissances de 10 et notation scientifique.
+
 ### Fractions
 
 | Exerciseur | ★ | ★★ | ★★★ |
