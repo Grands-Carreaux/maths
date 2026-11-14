@@ -5,7 +5,8 @@
   const C = Object.assign({ nomSite: 'Grands Carreaux', urlScript: '', classes: [], nbQuestions: 10 }, window.CONFIG || {});
   const THEMES = window.THEMES;
   const { Q, gcd, fracQ, M, cle } = window.MATHS;
-  const DOMAINES = [...new Set(THEMES.map((t) => t.domaine))];
+  const NIVEAUX = ['4e', '3e'];
+  const AUTRE = 'Autre';
   const app = document.getElementById('app');
   document.title = C.nomSite;
 
@@ -23,27 +24,46 @@
 
   /* ---------- Identité de l'élève (gardée sur l'appareil) ---------- */
   const getMoi = () => store.get('moi', null);
+  // « 4e 3 » → « 4e » ; « Autre : … » → null
+  const niveauDeClasse = (c) => NIVEAUX.find((n) => String(c || '').startsWith(n)) || null;
   function formIdent(onDone) {
     const moi = getMoi() || { prenom: '', classe: '' };
+    const estAutre = moi.classe && !C.classes.includes(moi.classe);
+    const precision = estAutre ? moi.classe.replace(/^Autre\s*:\s*/, '') : '';
     const classeField = C.classes.length
-      ? '<select id="id-classe"><option value="">Choisis…</option>' + C.classes.map((c) => '<option' + (c === moi.classe ? ' selected' : '') + '>' + esc(c) + '</option>').join('') + '</select>'
-      : '<input id="id-classe" autocomplete="off" placeholder="ex. 5e B" value="' + esc(moi.classe) + '">';
+      ? '<select id="id-classe"><option value="">Choisis…</option>' + C.classes.map((c) => '<option' + (c === moi.classe ? ' selected' : '') + '>' + esc(c) + '</option>').join('') +
+        '<option value="' + AUTRE + '"' + (estAutre ? ' selected' : '') + '>Autre</option></select>'
+      : '<input id="id-classe" autocomplete="off" placeholder="ex. 4e 3" value="' + esc(moi.classe) + '">';
     const el = document.createElement('form');
     el.className = 'card ident';
     el.innerHTML =
       '<h2>Qui es-tu ?</h2><p>Ton prénom et ta classe permettent à ton professeur de voir tes résultats.</p>' +
-      '<div class="fields"><label class="field">Prénom et initiale du nom<input id="id-prenom" autocomplete="given-name" maxlength="30" placeholder="ex. Léa M." value="' + esc(moi.prenom) + '"></label>' +
-      '<label class="field">Classe' + classeField + '</label></div>' +
+      '<div class="fields"><label class="field">Prénom<input id="id-prenom" autocomplete="given-name" maxlength="30" placeholder="ex. Léa" value="' + esc(moi.prenom) + '">' +
+      '<span class="aide">Si un autre élève de ta classe a le même prénom, ajoute l’initiale de ton nom.</span></label>' +
+      '<label class="field">Classe' + classeField + '</label>' +
+      '<label class="field" id="autre-zone"' + (estAutre ? '' : ' hidden') + '>Précise<input id="id-autre" maxlength="20" placeholder="ex. 5e 2, Prof…" value="' + esc(precision) + '"></label></div>' +
       '<p class="msg-err" id="id-err" hidden></p>' +
       '<div class="btn-row"><button class="btn btn-primary" type="submit">C’est parti</button></div>';
+    // La phrase d'aide apparaît au premier clic dans le champ Prénom, puis reste affichée (pas de saut de mise en page au moment de valider).
+    const inPrenom = el.querySelector('#id-prenom');
+    inPrenom.addEventListener('focus', () => inPrenom.closest('.field').classList.add('aide-vue'));
+    const sel = el.querySelector('select#id-classe');
+    if (sel) sel.onchange = () => { el.querySelector('#autre-zone').hidden = sel.value !== AUTRE; if (sel.value === AUTRE) el.querySelector('#id-autre').focus(); };
     el.addEventListener('submit', (e) => {
       e.preventDefault();
       const prenom = nomPropre(el.querySelector('#id-prenom').value).slice(0, 30);
-      const classe = el.querySelector('#id-classe').value.trim().slice(0, 20);
+      let classe = el.querySelector('#id-classe').value.trim().slice(0, 20);
       const err = el.querySelector('#id-err');
       if (!prenom) { err.textContent = 'Écris ton prénom.'; err.hidden = false; return; }
       if (!classe) { err.textContent = 'Indique ta classe.'; err.hidden = false; return; }
+      if (sel && classe === AUTRE) {
+        const pr = el.querySelector('#id-autre').value.trim().replace(/\s+/g, ' ').slice(0, 20);
+        if (!pr) { err.textContent = 'Précise qui tu es (ta classe, ou « Prof »).'; err.hidden = false; return; }
+        classe = AUTRE + ' : ' + pr;
+      }
+      const ancien = getMoi();
       store.set('moi', { prenom, classe });
+      if (!ancien || ancien.classe !== classe) { const n = niveauDeClasse(classe); if (n) store.set('niveau', n); }
       onDone();
     });
     return el;
@@ -52,8 +72,10 @@
   /* ---------- Routage ---------- */
   function route() {
     stopKeys();
+    if (window.__jeuStop) window.__jeuStop();
     const h = decodeURIComponent(location.hash.slice(1));
     if (h === 'prof') vueProf();
+    else if (h === 'jeu') vueJeu();
     else if (h.startsWith('ex-')) { const t = THEMES.find((x) => 'ex-' + x.id === h); t ? vueTheme(t) : vuePortail(); }
     else vuePortail();
     window.scrollTo(0, 0);
@@ -65,38 +87,46 @@
      ===================================================================== */
   function vuePortail() {
     const moi = getMoi();
-    let filtre = store.get('domaine', 'tous');
-    if (filtre !== 'tous' && !DOMAINES.includes(filtre)) filtre = 'tous';
+    let niveau = store.get('niveau', null);
+    if (!NIVEAUX.includes(niveau)) niveau = moi ? niveauDeClasse(moi.classe) : null;
     app.innerHTML =
       '<div class="wrap">' +
       '<header class="top"><div class="brand"><div class="logo" aria-hidden="true"></div><div><h1>' + esc(C.nomSite) + '</h1><p>Exerciseurs de mathématiques</p></div></div>' +
-      (moi ? '<div class="me">Bonjour <strong>' + esc(moi.prenom) + '</strong> · ' + esc(moi.classe) + '<button class="btn btn-ghost" id="chg">Modifier</button></div>' : '') +
+      (moi ? '<div class="me">Bonjour <strong>' + esc(moi.prenom) + '</strong> · ' + esc(moi.classe) + '<button class="btn btn-ghost" id="chg">Modifier</button><button class="btn btn-ghost" id="changer">Changer d’élève</button></div>' : '') +
       '</header><div id="identzone"></div>' +
-      '<nav class="chips" aria-label="Domaine">' +
-      ['tous'].concat(DOMAINES).map((n) => '<button class="chip" data-f="' + esc(n) + '" aria-pressed="' + (n === filtre) + '">' + (n === 'tous' ? 'Tout' : esc(n)) + '</button>').join('') +
-      '</nav><section class="grid" id="grid"></section>' +
+      '<nav class="niveaux" aria-label="Niveau"><span class="niv-label">Ton niveau</span>' +
+      NIVEAUX.map((n) => '<button class="niv" data-n="' + n + '" aria-pressed="' + (n === niveau) + '">' + n + '</button>').join('') +
+      '</nav><div id="jeuzone"></div><div id="grid"></div>' +
       '<footer class="foot"><a class="btn btn-ghost" href="#prof">Espace professeur</a></footer></div>';
 
     const iz = app.querySelector('#identzone');
     if (!moi) iz.appendChild(formIdent(vuePortail));
+    const chgEl = app.querySelector('#changer');
+    if (chgEl) chgEl.onclick = () => {
+      // Confirmation dans la page : l'appareil oublie le prénom et la classe (les données de chaque élève restent rangées à son nom)
+      iz.innerHTML = '<div class="card confirm-eleve" role="alertdialog"><p><strong>Changer d’élève ?</strong> Cet appareil va oublier « ' + esc(moi.prenom) + ' · ' + esc(moi.classe) + ' ». Tes résultats déjà envoyés sont conservés.</p>' +
+        '<div class="btn-row"><button class="btn btn-primary" id="chg-oui">Oui, changer d’élève</button><button class="btn btn-ghost" id="chg-non">Annuler</button></div></div>';
+      iz.querySelector('#chg-non').onclick = () => { iz.innerHTML = ''; };
+      iz.querySelector('#chg-oui').onclick = () => { try { localStorage.removeItem('gc:moi'); localStorage.removeItem('gc:niveau'); } catch (e) { /* */ } vuePortail(); };
+    };
     const chg = app.querySelector('#chg');
     if (chg) chg.onclick = () => { iz.innerHTML = ''; iz.appendChild(formIdent(vuePortail)); iz.querySelector('input').focus(); };
 
-    app.querySelectorAll('.chip').forEach((b) => b.onclick = () => { store.set('domaine', b.dataset.f); vuePortail(); });
-    const liste = THEMES.filter((t) => filtre === 'tous' || t.domaine === filtre);
+    app.querySelectorAll('.niv').forEach((b) => b.onclick = () => { store.set('niveau', b.dataset.n); vuePortail(); });
+    if (moi) app.querySelector('#jeuzone').innerHTML = carteJeu();
     const grid = app.querySelector('#grid');
-    if (!liste.length) {
-      grid.innerHTML = '<div class="card empty">Pas encore d’exerciseur dans ce domaine.</div>';
-      return;
-    }
-    grid.innerHTML = liste.map((t) => {
+    if (!niveau) { grid.innerHTML = '<div class="card empty">Choisis ton niveau pour voir les exerciseurs.</div>'; return; }
+    const liste = THEMES.filter((t) => t.classes.includes(niveau));
+    if (!liste.length) { grid.innerHTML = '<div class="card empty">Pas encore d’exerciseur pour la ' + niveau + '.</div>'; return; }
+    const domaines = [...new Set(liste.map((t) => t.domaine))];
+    grid.innerHTML = domaines.map((d) => '<section class="domaine"><h2>' + esc(d) + '</h2><div class="grid">' + liste.filter((t) => t.domaine === d).map((t) => {
       const prog = t.niveaux.map((lv, i) => {
         const b = store.get('best:' + t.id + ':' + (i + 1), null);
         return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + '★'.repeat(i + 1) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>';
       }).join('') + ((ec) => (ec ? '<span class="pill pause">En pause · question ' + questionEnCours(ec) + '/' + ec.n + '</span>' : ''))(lireEnCours(t));
-      return '<a class="card theme" href="#ex-' + t.id + '"><span class="eyebrow">' + esc(t.domaine) + '</span><h3>' + esc(t.titre) + '</h3><p>' + esc(t.resume) + '</p>' +
-        '<div class="tags">' + t.classes.map((c) => '<span class="tag">' + c + '</span>').join('') + '</div><div class="prog" aria-label="Tes meilleurs scores">' + prog + '</div></a>';
-    }).join('');
+      return '<a class="card theme" href="#ex-' + t.id + '"><h3>' + esc(t.titre) + '</h3><p>' + esc(t.resume) + '</p>' +
+        '<div class="prog" aria-label="Tes meilleurs scores">' + prog + '</div></a>';
+    }).join('') + '</div></section>').join('');
   }
 
   /* =====================================================================
@@ -167,6 +197,20 @@
   }
 
   const estExpr = () => S.q.type === 'expr';
+  const estChoix = () => S.q.type === 'choix';
+  const estDuree = () => S.q.type === 'duree';
+  // Durées : la saisie interne utilise h, m (min) et s ; l'ordre est toujours h, puis min, puis s.
+  const UNITES = { h: 'h', m: 'min', s: 's' };
+  const fmtDureeQ = (sec, unites) => {
+    const u = unites || ['h', 'min'], parts = [];
+    let reste = sec;
+    [['h', 3600], ['min', 60], ['s', 1]].forEach(([nom, val]) => {
+      if (!u.includes(nom)) return;
+      const n = Math.floor(reste / val); reste -= n * val;
+      if (n) parts.push(n + ' ' + nom);
+    });
+    return parts.join(' ') || '0 ' + u[u.length - 1];
+  };
   const SUP = { '²': '2', '³': '3' };
 
   function poser(qx) {
@@ -175,10 +219,23 @@
     S.vus.add(S.q.enonce);
     S.saisie = '';
     S.repondu = false;
+    S.etape = 0;
+    S.choixFaits = [];
     const k = (v, cls, label) => '<button class="key ' + (cls || '') + '" data-k="' + v + '" aria-label="' + (label || v) + '">' + (label || v) + '</button>';
     const vide = '<span class="key blank" aria-hidden="true"></span>';
     let pad;
-    if (estExpr()) {
+    if (estChoix()) {
+      pad = '<div class="pad choix" id="choix"></div>';
+    } else if (estDuree()) {
+      // Clavier « durée » : chiffres et unités demandées
+      const u = S.q.unites || ['h', 'min'];
+      const uk = (v, lab) => (u.includes(lab) ? k(v, 'op unite', lab) : vide);
+      pad = '<div class="pad">' +
+        k('7') + k('8') + k('9') + k('del', 'op', '⌫') +
+        k('4') + k('5') + k('6') + uk('h', 'h') +
+        k('1') + k('2') + k('3') + uk('m', 'min') +
+        uk('s', 's') + k('0') + '<button class="key go" data-k="ok">Valider</button></div>';
+    } else if (estExpr()) {
       // Clavier « calcul littéral » : chiffres, lettres de l'exercice, +, −, ², ³
       const L = S.q.lettres.slice(0, S.q.facto ? 1 : 3);
       const lk = (i) => (S.q.facto && i > 0 ? k(i === 1 ? '(' : ')', 'op') : L[i] ? '<button class="key lettre" data-k="' + L[i] + '" aria-label="lettre ' + L[i] + '"><i>' + L[i] + '</i></button>' : vide);
@@ -204,11 +261,16 @@
       '<div id="quitzone"></div>' +
       '<section class="sheet"><div class="consigne">' + esc(S.q.consigne || t.consigne) + ' <span aria-hidden="true">' + stars(lvl) + '</span></div>' +
       '<div class="enonce">' + S.q.enonce + '</div>' +
-      '<div class="answer" id="ans"><span class="pre">' + esc(S.q.prefixe != null ? S.q.prefixe : (t.prefixe || '= ')) + '</span><span class="box" id="box"></span></div></section>' +
+      '<div class="answer" id="ans"><span class="pre">' + esc(S.q.prefixe != null ? S.q.prefixe : estChoix() ? '' : (t.prefixe || '= ')) + '</span><span class="box" id="box"></span></div></section>' +
       '<p class="hint" id="hint"></p>' +
       '<div id="zone">' + pad + '</div></div>';
     afficherSaisie();
-    app.querySelector('.pad').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) touche(b.dataset.k); });
+    if (estChoix()) afficherChoix();
+    app.querySelector('.pad').addEventListener('click', (e) => {
+      const c = e.target.closest('[data-c]');
+      if (c) return choisir(+c.dataset.c);
+      const b = e.target.closest('[data-k]'); if (b) touche(b.dataset.k);
+    });
     app.querySelector('#quit').onclick = demanderQuitter;
     stopKeys();
     keyHandler = (e) => {
@@ -216,9 +278,19 @@
       const map = { Backspace: 'del', Delete: 'del', Enter: 'ok', '-': '-', '−': '-', '/': '/', ',': ',', '.': ',', '+': '+', '²': '²', '³': '³', '(': '(', ')': ')' };
       let v = /^[0-9]$/.test(e.key) ? e.key : map[e.key];
       if (!v && estExpr() && S.q.lettres.includes(e.key.toLowerCase())) v = e.key.toLowerCase();
+      if (!v && estDuree() && /^[hms]$/i.test(e.key)) v = e.key.toLowerCase();
+      if (!v && estChoix() && /^[a-z]$/i.test(e.key)) v = e.key;
       if (!v) return;
       e.preventDefault();
       if (S.repondu) { if (v === 'ok') suivante(); return; }
+      if (estChoix()) {
+        // 1, 2, 3… choisissent la 1re, 2e, 3e option ; une lettre (A, B, C, O pour Oui, N pour Non) choisit l'option qui commence par elle
+        const opts = S.q.etapes[S.etape].options, txt = (o) => o.replace(/<[^>]+>/g, '').trim().toUpperCase();
+        let i = /^[1-9]$/.test(v) ? +v - 1 : -1;
+        if (i < 0 && e.key.length === 1) i = opts.findIndex((o) => txt(o).startsWith(e.key.toUpperCase()));
+        if (i >= 0 && i < opts.length) choisir(i);
+        return;
+      }
       touche(v);
     };
     document.addEventListener('keydown', keyHandler);
@@ -231,7 +303,18 @@
     app.querySelector('#hint').textContent = '';
     if (v === 'ok') return valider();
     if (v === 'del') S.saisie = s.slice(0, -1);
-    else if (estExpr()) {
+    else if (estDuree()) {
+      const u = S.q.unites || ['h', 'min'], ordre = 'hms';
+      if (/[0-9]/.test(v)) {
+        const bloc = (s.match(/(\d*)$/) || ['', ''])[1];
+        if (bloc.length >= 5 || (s.endsWith('s'))) return;
+      } else if (/[hms]/.test(v)) {
+        if (!u.includes(UNITES[v]) || !/[0-9]$/.test(s)) return;
+        const deja = s.replace(/[0-9]/g, '');
+        if (deja.includes(v) || (deja && ordre.indexOf(v) < ordre.indexOf(deja.slice(-1)))) return;
+      } else return;
+      S.saisie = s + v;
+    } else if (estExpr()) {
       const estOp = (c) => c === '+' || c === '-';
       const prof = (s.match(/\(/g) || []).length - (s.match(/\)/g) || []).length;
       if (s.length >= 40) return;
@@ -273,7 +356,9 @@
     const box = app.querySelector('#box');
     const s = S.saisie;
     let html;
-    if (estExpr()) html = rendExpr(s);
+    if (estChoix()) html = S.choixFaits.map((i, k) => S.q.etapes[k].options[i]).join(' · ');
+    else if (estDuree()) html = s.replace(/(\d+)([hms])/g, (_, n, u) => n + '<span class="u">' + UNITES[u] + '</span> ').trim();
+    else if (estExpr()) html = rendExpr(s);
     else if (s.includes('/')) {
       const [a, b] = s.split('/');
       html = '<span class="frac"><span>' + esc(rendNombre(a)) + '</span><span>' + (b ? esc(rendNombre(b)) : '<span class="ph">□</span>') + '</span></span>';
@@ -368,14 +453,42 @@
     return { map, produit: groupes.length >= 2 || (groupes.length === 1 && !!nonTrivial), incomplet, pasReduit };
   }
   const memeMap = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => a[k] === b[k]); };
-  const reponseHTML = (q) => (q.type === 'expr' ? q.reponseHTML : fracQ(q.reponse));
+  const reponseHTML = (q) => (q.type === 'expr' ? q.reponseHTML
+    : q.type === 'choix' ? q.etapes.map((e) => e.options[e.reponse]).join(' · ')
+      : q.type === 'duree' ? fmtDureeQ(q.reponse, q.unites) : fracQ(q.reponse));
+
+  // Questions à choix : une ou plusieurs étapes (ex. « rectangle ? » puis « en quel point ? »).
+  // On passe à l'étape suivante seulement si la réponse est juste.
+  function afficherChoix() {
+    const st = S.q.etapes[S.etape];
+    app.querySelector('#choix').innerHTML = (st.texte ? '<p class="choix-q">' + st.texte + '</p>' : '') +
+      '<div class="choix-grid n' + Math.min(st.options.length, 4) + '">' + st.options.map((o, i) => '<button class="key opt" data-c="' + i + '">' + o + '</button>').join('') + '</div>';
+  }
+  function choisir(i) {
+    if (S.repondu) return;
+    S.choixFaits.push(i);
+    const st = S.q.etapes[S.etape];
+    if (i === st.reponse && S.etape + 1 < S.q.etapes.length) { S.etape++; afficherSaisie(); afficherChoix(); return; }
+    valider();
+  }
 
   function valider() {
     const hint = app.querySelector('#hint');
-    if (!S.saisie || S.saisie === '-') { hint.textContent = 'Écris ta réponse avec le clavier.'; secouer(); return; }
+    if (!estChoix() && (!S.saisie || S.saisie === '-')) { hint.textContent = 'Écris ta réponse avec le clavier.'; secouer(); return; }
     let egal, pasSimplifie = false, conseil = '';
     let msgPresque = 'Ton expression est bien égale au résultat, mais elle n’est pas réduite au maximum. On attendait <strong>' + reponseHTML(S.q) + '</strong>.';
-    if (estExpr() && S.q.facto) {
+    if (estChoix()) {
+      egal = S.choixFaits.length === S.q.etapes.length && S.choixFaits.every((i, k) => i === S.q.etapes[k].reponse);
+    } else if (estDuree()) {
+      const m = S.saisie.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+      if (!m || /\d$/.test(S.saisie)) { hint.textContent = 'Ajoute l’unité après chaque nombre (h, min ou s).'; secouer(); return; }
+      const h = +(m[1] || 0), mi = +(m[2] || 0), se = +(m[3] || 0), u = S.q.unites || ['h', 'min'];
+      egal = h * 3600 + mi * 60 + se === S.q.reponse;
+      if (egal && ((u.includes('h') && mi >= 60) || (u.includes('min') && se >= 60))) {
+        pasSimplifie = true;
+        msgPresque = 'Ta durée est juste, mais il faut convertir : 60 min = 1 h et 60 s = 1 min. On attendait <strong>' + reponseHTML(S.q) + '</strong>.';
+      }
+    } else if (estExpr() && S.q.facto) {
       const r = lireFacto(S.saisie);
       if (!r) { hint.textContent = 'Ta réponse est incomplète : vérifie les parenthèses.'; secouer(); return; }
       egal = !!r.map && memeMap(r.map, S.q.reponse);
@@ -393,7 +506,7 @@
       if (r.zero) { hint.textContent = 'Le dénominateur ne peut pas être 0.'; secouer(); return; }
       const att = S.q.reponse;
       egal = r.q.n === att.n && r.q.d === att.d;
-      const nonIrr = r.brut.frac && (gcd(r.brut.n, r.brut.d) !== 1 || Math.abs(r.brut.d) === 1 || r.brut.d < 0);
+      const nonIrr = r.brut.frac && (gcd(r.brut.n, r.brut.d) !== 1 || Math.abs(r.brut.d) === 1); // le signe − est accepté au numérateur comme au dénominateur
       const mode = S.q.irreductible != null ? S.q.irreductible : S.t.irreductible;
       if (egal && nonIrr && mode === true) pasSimplifie = true;
       if (egal && nonIrr && mode === 'conseil') conseil = 'Tu pouvais simplifier : ' + fracQ(r.brut.d < 0 ? { n: -r.brut.n, d: -r.brut.d } : r.brut) + ' = ' + fracQ(att) + '.';
@@ -455,6 +568,9 @@
     stopKeys();
     const { t, lvl, score, n } = S;
     effacer(t);
+    const bonusAvant = viesBonus(), reussie = score >= Math.ceil(0.8 * n);
+    if (reussie) setViesBonus(bonusAvant + 1);
+    const bonusApres = viesBonus();
     const duree = (Date.now() - S.debut) / 1000;
     const cle = 'best:' + t.id + ':' + lvl;
     const best = store.get(cle, null);
@@ -475,6 +591,9 @@
       '<div class="big">' + score + '<small>/' + n + '</small></div><h1>' + titre + '</h1>' +
       '<div class="stats"><div class="card stat"><b>' + fmtDuree(duree) + '</b><span>Temps</span></div><div class="card stat"><b>' + S.meilleureSerie + '</b><span>Meilleure série</span></div></div>' +
       '<p class="send" id="send">' + (C.urlScript ? 'Envoi du résultat à ton professeur…' : 'Mode démonstration : le résultat n’est pas envoyé.') + '</p>' +
+      '<a class="card gain" href="#jeu"><span class="jeu-icone">' + ICONE_JEU + '</span><span class="jeu-txt"><strong>' +
+        (bonusApres > bonusAvant ? 'Bravo, 8/10 ou plus : +1 vie pour ' + JEU.nom + ' !' : reussie ? 'Réserve de vies bonus pleine !' : JEU.nom) + '</strong>' +
+        '<span>' + (reussie ? 'Ta prochaine partie : ' + txtVies(bonusApres) + '.' : 'Fais 8/10 ou plus pour gagner une vie bonus. Tu peux quand même jouer !') + '</span></span>' + pastilles(bonusApres) + '</a>' +
       '<div class="btn-row">' +
       (p >= 0.8 && lvl < 3 ? '<button class="btn btn-primary" id="up">Passer au niveau ' + '★'.repeat(lvl + 1) + '</button>' : '') +
       '<button class="btn ' + (p >= 0.8 && lvl < 3 ? '' : 'btn-primary') + '" id="again">Nouvelle série</button>' +
@@ -519,7 +638,7 @@
   /* =====================================================================
      ESPACE PROFESSEUR
      ===================================================================== */
-  let donneesProf = null;
+  let donneesProf = null, donneesJeu = [];
   function vueProf() {
     app.innerHTML = '<div class="wrap prof"><a class="btn btn-ghost back" href="#">← Portail élèves</a><h1>Espace professeur</h1>' +
       '<p class="lead">Résultats envoyés par les élèves à la fin de chaque série.</p><div id="pz"></div></div>';
@@ -551,6 +670,7 @@
       if (!j.ok) { try { sessionStorage.removeItem('gc:cle'); } catch (e) { /* */ } return formCle(pz, j.erreur === 'cle' ? 'Code incorrect.' : 'Erreur : ' + (j.erreur || 'inconnue')); }
       try { sessionStorage.setItem('gc:cle', cle); } catch (e) { /* */ }
       donneesProf = j.lignes.map((l) => Object.assign(l, { t: new Date(l.date).getTime(), cleEleve: (l.classe + '|' + l.prenom).toLowerCase() }));
+      donneesJeu = (j.jeu || []).map((l) => Object.assign(l, { t: new Date(l.date).getTime(), cleEleve: (l.classe + '|' + l.prenom).toLowerCase() }));
       rendreProf(pz);
     } catch (e) {
       formCle(pz, 'Impossible de joindre le tableur. Vérifiez la connexion et l’adresse urlScript dans config.js.');
@@ -567,7 +687,7 @@
   }
   function rendreProf(pz) {
     const d = donneesProf;
-    const classes = [...new Set(d.map((l) => l.classe))].sort();
+    const classes = [...new Set(d.map((l) => l.classe).concat(donneesJeu.map((l) => l.classe)))].sort();
     const themes = [...new Set(d.map((l) => l.themeId))].map((id) => ({ id, titre: (THEMES.find((t) => t.id === id) || {}).titre || id }));
     const sel = (id, opts, val) => '<select id="' + id + '">' + opts.map(([v, l]) => '<option value="' + esc(v) + '"' + (v === val ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select>';
     pz.innerHTML =
@@ -610,8 +730,15 @@
     const dt = (t) => new Date(t).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     const nomT = (id) => (THEMES.find((t) => t.id === id) || {}).titre || id;
 
+    const garderPeriode = (l) => !F.periode || (F.periode === '1' ? new Date(l.t).toDateString() === new Date().toDateString() : now - l.t <= F.periode * 864e5);
+    const LJ = donneesJeu.filter((l) => (!F.classe || l.classe === F.classe) && (!F.q || l.prenom.toLowerCase().includes(F.q)) && garderPeriode(l)).sort((a, b) => b.t - a.t);
     let corps;
-    if (!L.length) corps = '<div class="card empty">Aucun résultat pour ces filtres.</div>';
+    if (F.onglet === 'jeu') {
+      corps = !LJ.length ? '<div class="card empty">Aucune partie de ' + JEU.nom + ' pour ces filtres.</div>'
+        : '<div class="card tablewrap"><table><thead><tr><th>Date</th><th>Élève</th><th>Classe</th><th>Mode</th><th>Score</th><th>Durée</th><th></th></tr></thead><tbody>' +
+          LJ.slice(0, 500).map((l) => '<tr><td class="num">' + dt(l.t) + '</td><td><strong>' + esc(l.prenom) + '</strong></td><td>' + esc(l.classe) + '</td><td>' + (l.mode === 'expert' ? 'Expert' : 'Normal') + '</td>' +
+            '<td class="num"><strong>' + l.score + '</strong></td><td class="num">' + fmtDuree(l.duree) + '</td><td class="act"><button class="btn btn-ghost danger" data-del-jeu="' + esc(l.id) + '">Supprimer</button></td></tr>').join('') + '</tbody></table></div>';
+    } else if (!L.length) corps = '<div class="card empty">Aucun résultat pour ces filtres.</div>';
     else if (F.onglet === 'eleves') {
       const rows = [...eleves.values()].sort((a, b) => a.classe.localeCompare(b.classe) || a.prenom.localeCompare(b.prenom));
       corps = '<div class="card tablewrap"><table><thead><tr><th>Élève</th><th>Classe</th><th>Séries</th><th>Réussite</th><th>Meilleurs scores</th><th>Dernière activité</th><th></th></tr></thead><tbody>' +
@@ -626,20 +753,27 @@
     }
     el.innerHTML = (flash ? '<p class="flash" role="status">' + esc(flash) + '</p>' : '') +
       '<div class="kpis"><div class="card kpi"><b>' + eleves.size + '</b><span>élèves actifs</span></div><div class="card kpi"><b>' + L.length + '</b><span>séries terminées</span></div><div class="card kpi"><b>' + moy + ' %</b><span>réussite moyenne</span></div></div>' +
-      '<div class="tabs"><button class="chip" data-o="eleves" aria-pressed="' + (F.onglet === 'eleves') + '">Par élève</button><button class="chip" data-o="series" aria-pressed="' + (F.onglet === 'series') + '">Toutes les séries</button></div>' + corps;
+      '<div class="tabs"><button class="chip" data-o="eleves" aria-pressed="' + (F.onglet === 'eleves') + '">Par élève</button><button class="chip" data-o="series" aria-pressed="' + (F.onglet === 'series') + '">Toutes les séries</button><button class="chip" data-o="jeu" aria-pressed="' + (F.onglet === 'jeu') + '">Jeu</button></div>' + corps;
     el.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { flash = ''; F.onglet = b.dataset.o; tableaux(el); });
     flash = '';
     // Suppression : confirmation dans la ligne, puis envoi au tableur
-    el.querySelectorAll('[data-del-eleve], [data-del-id]').forEach((b) => b.onclick = () => {
+    el.querySelectorAll('[data-del-eleve], [data-del-id], [data-del-jeu]').forEach((b) => b.onclick = () => {
       const td = b.parentNode;
-      let texte, payload, garder;
+      let texte, payload, garder, garderJeu = () => true;
       if (b.dataset.delEleve != null) {
         const e = el.__eleves[+b.dataset.delEleve], cleE = (e.classe + '|' + e.prenom).toLowerCase();
-        const nb = donneesProf.filter((l) => l.cleEleve === cleE).length;
-        texte = 'Supprimer ' + e.prenom + ' (' + e.classe + ') et ' + (nb > 1 ? 'ses ' + nb + ' séries' : 'sa série') + ' ?';
+        const nb = donneesProf.filter((l) => l.cleEleve === cleE).length, nj = donneesJeu.filter((l) => l.cleEleve === cleE).length;
+        const jeuTxt = nj ? ' et ' + nj + (nj > 1 ? ' scores' : ' score') + ' du jeu' : '';
+        texte = 'Supprimer ' + e.prenom + ' (' + e.classe + '), ' + (nb > 1 ? 'ses ' + nb + ' séries' : 'sa série') + jeuTxt + ' ?';
         payload = { prenom: e.prenom, classe: e.classe };
-        garder = (l) => l.cleEleve !== cleE;
-        flash = 'Élève supprimé : ' + e.prenom + ' (' + e.classe + '), ' + nb + (nb > 1 ? ' séries effacées.' : ' série effacée.');
+        garder = (l) => l.cleEleve !== cleE; garderJeu = garder;
+        flash = 'Élève supprimé : ' + e.prenom + ' (' + e.classe + '), ' + nb + (nb > 1 ? ' séries' : ' série') + jeuTxt + ' effacé' + (nb + nj > 1 ? 's' : '') + '.';
+      } else if (b.dataset.delJeu != null) {
+        const id = b.dataset.delJeu, l0 = donneesJeu.find((l) => l.id === id);
+        texte = 'Supprimer ce score de ' + l0.prenom + ' (' + l0.score + ' pts) ?';
+        payload = { id, feuille: 'jeu' };
+        garder = () => true; garderJeu = (l) => l.id !== id;
+        flash = 'Score supprimé (' + l0.prenom + ', ' + l0.score + ' pts).';
       } else {
         const id = b.dataset.delId, l0 = donneesProf.find((l) => l.id === id);
         texte = 'Supprimer cette série de ' + l0.prenom + ' ?';
@@ -656,6 +790,7 @@
           const j = await supprimerDistant(payload);
           if (!j.ok) throw new Error(j.erreur === 'cle' ? 'Code professeur refusé.' : (j.erreur || 'erreur'));
           donneesProf = donneesProf.filter(garder);
+          donneesJeu = donneesJeu.filter(garderJeu);
           flash = msg;
           tableaux(el);
         } catch (err) {
@@ -665,8 +800,264 @@
     });
   }
 
+  /* =====================================================================
+     JEU « PLUIE DE NOMBRES »
+     Une partie est gagnée à chaque série terminée (3 en réserve au maximum).
+     ===================================================================== */
+  const JEU = { nom: 'Pluie de nombres', viesBase: 3, maxBonus: 3, seuilExpert: 300 };
+  const idEleve = () => { const m = getMoi(); return m ? (m.classe + '|' + m.prenom).toLowerCase() : 'anonyme'; };
+  // Vies bonus : +1 par série terminée avec 8/10 ou plus, 3 au maximum, toutes utilisées à la partie suivante.
+  const viesBonus = () => store.get('viesbonus:' + idEleve(), 0);
+  const setViesBonus = (n) => store.set('viesbonus:' + idEleve(), Math.max(0, Math.min(JEU.maxBonus, n)));
+  const txtVies = (b) => JEU.viesBase + ' vies' + (b ? ' + ' + b + (b > 1 ? ' vies bonus' : ' vie bonus') : '');
+  const record = (mode) => store.get('record:' + mode + ':' + idEleve(), 0);
+  const expertDebloque = () => record('normal') >= JEU.seuilExpert;
+  const pastilles = (n) => '<span class="pastilles" aria-label="' + n + (n > 1 ? ' vies bonus' : ' vie bonus') + ' sur ' + JEU.maxBonus + '">' +
+    [0, 1, 2].map((i) => '<i class="' + (i < n ? 'on' : '') + '"></i>').join('') + '</span>';
+  const ICONE_JEU = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="34" width="38" height="9" rx="3" class="ij-cahier"/><line x1="11" y1="34" x2="11" y2="43" class="ij-marge"/>' +
+    '<text x="9" y="16" class="ij-n">7</text><text x="26" y="25" class="ij-n ij-d">2,5</text><text x="30" y="10" class="ij-n">12</text></svg>';
+
+  function carteJeu() {
+    const b = viesBonus();
+    return '<a class="card jeu-carte" href="#jeu"><span class="jeu-icone">' + ICONE_JEU + '</span><span class="jeu-txt"><strong>' + JEU.nom + '</strong>' +
+      '<span>' + txtVies(b) + (b < JEU.maxBonus ? ' · Une série à 8/10 ou plus = +1 vie bonus' : ' · Réserve de vies bonus pleine !') + '</span></span>' + pastilles(b) + '</a>';
+  }
+
+  function vueJeu() {
+    const moi = getMoi();
+    if (!moi) { location.hash = ''; return; }
+    const b = viesBonus(), exp = expertDebloque();
+    app.innerHTML = '<div class="wrap jeu-page"><a class="btn btn-ghost back" href="#">← Retour aux exerciseurs</a>' +
+      '<div class="thead"><span class="eyebrow">Jeu</span><h1>' + JEU.nom + '</h1>' +
+      '<p>Déplace ton cahier avec les flèches ◀ ▶ (ou celles du clavier). <strong>Attrape les nombres entiers</strong>, évite les nombres décimaux. La pluie accélère, et tu as 3 vies, plus tes vies bonus. De temps en temps, un <strong>bonus</strong> change la règle pendant quelques secondes : lis bien le bandeau !</p></div>' +
+      '<div class="card jeu-panneau"><div class="jeu-ligne"><span>Vies pour ta prochaine partie : <strong>' + txtVies(b) + '</strong></span>' + pastilles(b) + '</div>' +
+      '<div class="jeu-ligne"><span>Ton record</span><strong>' + record('normal') + ' pts</strong></div>' +
+      (exp ? '<div class="jeu-ligne"><span>Ton record en mode expert</span><strong>' + record('expert') + ' pts</strong></div>' : '') +
+      '<div class="btn-row"><button class="btn btn-primary" id="j-normal">Jouer</button>' +
+      '<button class="btn" id="j-expert"' + (exp ? '' : ' disabled') + '>Mode expert</button></div>' +
+      '<p class="jeu-note">Chaque série d’exercices terminée avec 8/10 ou plus te donne une vie bonus (' + JEU.maxBonus + ' au maximum), utilisée à ta prochaine partie.</p>' +
+      '<p class="jeu-note">' + (exp ? 'Mode expert : la règle change toutes les 15 secondes (nombres premiers, multiples de 3, de 5 ou de 10).'
+        : 'Le mode expert se débloque à ' + JEU.seuilExpert + ' points en mode normal.') + '</p></div>' +
+      '<section id="podiums" class="podiums"></section></div>';
+    const b1 = app.querySelector('#j-normal'), b2 = app.querySelector('#j-expert');
+    b1.onclick = () => jouer('normal');
+    b2.onclick = () => jouer('expert');
+    afficherPodiums(app.querySelector('#podiums'));
+  }
+
+  async function afficherPodiums(el) {
+    if (!el) return;
+    if (!C.urlScript) { el.innerHTML = '<p class="jeu-note">Le classement s’affichera quand le site sera relié au tableur du professeur.</p>'; return; }
+    el.innerHTML = '<p class="jeu-note">Chargement du classement…</p>';
+    const moi = getMoi();
+    try {
+      const rep = await fetch(C.urlScript + '?action=classement&classe=' + encodeURIComponent(moi.classe));
+      const d = await rep.json();
+      if (!d.ok) throw new Error();
+      const pod = (liste, avecClasse) => (liste.length ? '<ol class="podium">' + liste.map((l, i) => '<li class="p' + (i + 1) + '"><span class="rang">' + (i + 1) + '</span><span class="nom">' + esc(l.prenom) +
+        (avecClasse ? ' <small>' + esc(l.classe) + '</small>' : '') + '</span><b>' + l.score + '</b></li>').join('') + '</ol>' : '<p class="jeu-note">Personne pour l’instant : à toi de jouer !</p>');
+      const bloc = (titre, data, avecClasse) => '<div class="card podium-bloc"><h2>' + titre + '</h2><h3>Mode normal</h3>' + pod(data.normal, avecClasse) +
+        (data.expert.length ? '<h3>Mode expert</h3>' + pod(data.expert, avecClasse) : '') + '</div>';
+      el.innerHTML = bloc('Ta classe · ' + esc(moi.classe), d.classe, false) + bloc('Tout le collège', d.tous, true);
+    } catch (e) {
+      el.innerHTML = '<p class="jeu-note">Classement indisponible pour le moment (pas de connexion ?).</p>';
+    }
+  }
+
+  // ---------- Générateurs de nombres qui tombent ----------
+  const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const estPremier = (n) => { if (n < 2) return false; for (let d = 2; d * d <= n; d++) if (n % d === 0) return false; return true; };
+  const ecrire = (x) => String(x).replace('.', ',').replace('-', M);
+  const REGLES = {
+    base: { bandeau: 'Attrape les entiers, évite les décimaux', pts: 10,
+      gen() {
+        if (Math.random() < 0.55) { const n = Math.random() < 0.15 ? -rint(1, 20) : rint(0, 99); return { txt: ecrire(n), bon: true }; }
+        const ent = rint(0, 49), dec = Math.random() < 0.6 ? rint(1, 9) / 10 : rint(1, 99) / 100, x = Math.round((ent + dec) * 100) / 100;
+        return { txt: ecrire(Math.random() < 0.15 ? -x : x), bon: Number.isInteger(x) };
+      } },
+    fractions: { bandeau: 'BONUS : attrape les fractions dont le quotient est un entier', pts: 30, bonus: true,
+      gen() {
+        const b = rint(2, 9);
+        if (Math.random() < 0.5) return { frac: [b * rint(1, 9), b], bon: true };
+        let a; do { a = rint(1, 9 * b); } while (a % b === 0);
+        return { frac: [a, b], bon: false };
+      } },
+    multiples5: { bandeau: 'BONUS : attrape les multiples de 5', pts: 30, bonus: true,
+      gen() { const n = Math.random() < 0.45 ? 5 * rint(1, 20) : (() => { let x; do { x = rint(1, 100); } while (x % 5 === 0); return x; })(); return { txt: String(n), bon: n % 5 === 0 }; } },
+    premiers: { bandeau: 'Attrape les nombres premiers', pts: 20,
+      gen() { let n; const veut = Math.random() < 0.45; do { n = rint(2, 100); } while (estPremier(n) !== veut); return { txt: String(n), bon: veut }; } },
+    multiples3: { bandeau: 'Attrape les multiples de 3', pts: 20,
+      gen() { let n; const veut = Math.random() < 0.45; do { n = rint(2, 100); } while ((n % 3 === 0) !== veut); return { txt: String(n), bon: veut }; } },
+    multiples5e: { bandeau: 'Attrape les multiples de 5', pts: 20,
+      gen() { let n; const veut = Math.random() < 0.45; do { n = rint(2, 100); } while ((n % 5 === 0) !== veut); return { txt: String(n), bon: veut }; } },
+    multiples10: { bandeau: 'Attrape les multiples de 10', pts: 20,
+      gen() { let n; const veut = Math.random() < 0.45; do { n = rint(2, 120); } while ((n % 10 === 0) !== veut); return { txt: String(n), bon: veut }; } }
+  };
+
+  function jouer(mode) {
+    if (mode === 'expert' && !expertDebloque()) return vueJeu();
+    const bonusUtilises = viesBonus();
+    setViesBonus(0);
+    app.innerHTML = '<div class="jeu-play">' +
+      '<div class="bar"><button class="iconbtn" id="j-quit" aria-label="Arrêter la partie">✕</button><span class="vies" id="vies"></span><span class="jeu-score" id="jscore">0</span></div>' +
+      '<div class="jeu-bandeau" id="bandeau"><span id="bandeau-txt"></span><i id="bandeau-temps"></i></div>' +
+      '<div class="jeu-cadre" id="cadre"><canvas id="cv"></canvas></div>' +
+      '<div class="jeu-ctrl"><button class="key" id="j-g" aria-label="Aller à gauche">◀</button><button class="key" id="j-d" aria-label="Aller à droite">▶</button></div></div>';
+    const cv = app.querySelector('#cv'), cx = cv.getContext('2d'), cadre = app.querySelector('#cadre');
+    const css = getComputedStyle(document.documentElement), coul = (v) => css.getPropertyValue(v).trim() || '#000';
+    const COUL = { papier: coul('--surface'), ligne: coul('--line-strong'), encre: coul('--ink'), bleu: coul('--blue'), marge: coul('--margin'), ok: coul('--ok'), ko: coul('--ko'), bord: coul('--border') };
+    let W = 0, H = 0, dpr = 1;
+    function taille() {
+      dpr = window.devicePixelRatio || 1;
+      W = cadre.clientWidth; H = cadre.clientHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    taille();
+    const echelle = () => Math.max(0.75, Math.min(1.3, H / 560));
+    const J = { x: W / 2, w: Math.max(72, W * 0.22), h: 26 };
+    const viesDepart = JEU.viesBase + bonusUtilises;
+    let items = [], effets = [], t = 0, score = 0, vies = viesDepart, prochain = 0.6, fini = false, raf = 0, dernier = performance.now();
+    let gauche = false, droite = false, cible = null, regle = 'base', finPhase = 0, pause = 0;
+    // Mode normal : bonus de 10 s toutes les 30 s (à partir de 20 s). Mode expert : règle changée toutes les 15 s.
+    const ordreExpert = ['premiers', 'multiples3', 'multiples5e', 'multiples10'].sort(() => Math.random() - 0.5);
+    let iExpert = 0, prochainBonus = 20, typeBonus = Math.random() < 0.5 ? 'fractions' : 'multiples5';
+    if (mode === 'expert') { regle = ordreExpert[0]; finPhase = 15; }
+    const majBandeau = () => {
+      const R = REGLES[regle];
+      app.querySelector('#bandeau-txt').textContent = R.bandeau + ' (+' + R.pts + ')';
+      app.querySelector('#bandeau').className = 'jeu-bandeau' + (R.bonus ? ' bonus' : '') + (mode === 'expert' ? ' expert' : '');
+    };
+    const majVies = () => { app.querySelector('#vies').innerHTML = Array.from({ length: viesDepart }, (_, i) => '<i class="' + (i < vies ? 'on' : '') + (i >= JEU.viesBase ? ' bonus' : '') + '"></i>').join(''); };
+    majBandeau(); majVies();
+    const changerRegle = (r, duree) => { regle = r; finPhase = t + duree; items = []; pause = 1; majBandeau(); };
+
+    function apparaitre() {
+      const g = REGLES[regle].gen();
+      cx.font = '700 ' + Math.round(22 * echelle()) + 'px system-ui, sans-serif';
+      const lw = g.frac ? Math.max(cx.measureText(String(g.frac[0])).width, cx.measureText(String(g.frac[1])).width) : cx.measureText(g.txt).width;
+      const w = lw + 24 * echelle(), h = (g.frac ? 62 : 40) * echelle();
+      let x, essais = 0;
+      do { x = w / 2 + 6 + Math.random() * (W - w - 12); essais++; } while (essais < 8 && items.some((it) => it.y < h * 1.5 && Math.abs(it.x - x) < (it.w + w) / 2 + 6));
+      items.push(Object.assign(g, { x, y: -h / 2, w, h, pts: REGLES[regle].pts }));
+    }
+    function tuile(it) {
+      const x = it.x - it.w / 2, y = it.y - it.h / 2, r = 10 * echelle();
+      cx.fillStyle = COUL.papier; cx.strokeStyle = COUL.bleu; cx.lineWidth = 2;
+      cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, it.w, it.h, r) : cx.rect(x, y, it.w, it.h); cx.fill(); cx.stroke();
+      cx.fillStyle = COUL.encre; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.font = '700 ' + Math.round(22 * echelle()) + 'px system-ui, sans-serif';
+      if (it.frac) {
+        cx.fillText(String(it.frac[0]), it.x, it.y - it.h * 0.22);
+        cx.fillRect(it.x - it.w / 2 + 8, it.y - 1, it.w - 16, 2.5);
+        cx.fillText(String(it.frac[1]), it.x, it.y + it.h * 0.24);
+      } else cx.fillText(it.txt, it.x, it.y + 1);
+    }
+    function dessiner() {
+      cx.clearRect(0, 0, W, H);
+      cx.fillStyle = COUL.papier; cx.fillRect(0, 0, W, H);
+      cx.strokeStyle = COUL.ligne; cx.lineWidth = 1; cx.globalAlpha = 0.5;
+      for (let y = 32; y < H; y += 32) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(W, y); cx.stroke(); }
+      for (let x = 32; x < W; x += 32) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, H); cx.stroke(); }
+      cx.globalAlpha = 1;
+      items.forEach(tuile);
+      // le cahier du joueur
+      const py = H - J.h - 16, px = J.x - J.w / 2;
+      cx.fillStyle = COUL.bleu; cx.beginPath(); cx.roundRect ? cx.roundRect(px, py, J.w, J.h, 6) : cx.rect(px, py, J.w, J.h); cx.fill();
+      cx.strokeStyle = COUL.marge; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(px + 12, py); cx.lineTo(px + 12, py + J.h); cx.stroke();
+      effets.forEach((e) => { cx.globalAlpha = Math.max(0, e.v); cx.fillStyle = e.c; cx.font = '800 ' + Math.round(20 * echelle()) + 'px system-ui, sans-serif'; cx.textAlign = 'center'; cx.fillText(e.txt, e.x, e.y); cx.globalAlpha = 1; });
+      if (pause > 0) { cx.fillStyle = COUL.encre; cx.globalAlpha = 0.8; cx.font = '800 ' + Math.round(26 * echelle()) + 'px system-ui, sans-serif'; cx.textAlign = 'center'; cx.fillText(t < 1.2 ? 'C’est parti !' : 'Nouvelle règle !', W / 2, H / 2); cx.globalAlpha = 1; }
+    }
+    function etape(now) {
+      if (fini) return;
+      const dt = Math.min(0.05, (now - dernier) / 1000); dernier = now; t += dt;
+      if (pause > 0) pause -= dt;
+      // phases
+      if (mode === 'expert' && t >= finPhase) { iExpert = (iExpert + 1) % ordreExpert.length; changerRegle(ordreExpert[iExpert], 15); }
+      if (mode === 'normal') {
+        if (regle === 'base' && t >= prochainBonus) { changerRegle(typeBonus, 10); typeBonus = typeBonus === 'fractions' ? 'multiples5' : 'fractions'; prochainBonus = t + 40; }
+        else if (regle !== 'base' && t >= finPhase) changerRegle('base', 0);
+      }
+      const reste = REGLES[regle].bonus || mode === 'expert' ? Math.max(0, finPhase - t) / (mode === 'expert' ? 15 : 10) : 0;
+      app.querySelector('#bandeau-temps').style.width = (reste * 100) + '%';
+      // déplacement du joueur
+      const vJ = W * 1.15;
+      if (gauche) J.x -= vJ * dt; if (droite) J.x += vJ * dt;
+      if (cible != null && !gauche && !droite) { const d = cible - J.x; J.x += Math.sign(d) * Math.min(Math.abs(d), vJ * dt); }
+      J.x = Math.max(J.w / 2, Math.min(W - J.w / 2, J.x));
+      // pluie : vitesse et fréquence augmentent avec le temps
+      const vitesse = Math.min(520, 120 + 4.5 * t) * echelle();
+      if (pause <= 0) { prochain -= dt; if (prochain <= 0) { apparaitre(); prochain = Math.max(0.38, 1.15 - t * 0.012); } }
+      const py = H - J.h - 16;
+      items.forEach((it) => { it.y += vitesse * dt; });
+      items = items.filter((it) => {
+        if (it.y + it.h / 2 >= py && it.y - it.h / 2 <= py + J.h && Math.abs(it.x - J.x) < (J.w + it.w) / 2 * 0.92) {
+          if (it.bon) { score += it.pts; effets.push({ txt: '+' + it.pts, x: it.x, y: py - 10, c: COUL.ok, v: 1 }); }
+          else { vies--; majVies(); effets.push({ txt: 'Raté !', x: it.x, y: py - 10, c: COUL.ko, v: 1 }); cadre.classList.remove('choc'); void cadre.offsetWidth; cadre.classList.add('choc'); }
+          app.querySelector('#jscore').textContent = score;
+          return false;
+        }
+        return it.y - it.h / 2 < H;
+      });
+      effets.forEach((e) => { e.y -= 40 * dt; e.v -= dt * 1.2; }); effets = effets.filter((e) => e.v > 0);
+      dessiner();
+      if (vies <= 0) return finJeu();
+      raf = requestAnimationFrame(etape);
+    }
+    // commandes : clavier, flèches tactiles (maintenir), ou glisser le doigt sur la zone de jeu
+    const kd = (e) => { if (e.key === 'ArrowLeft') { gauche = true; e.preventDefault(); } if (e.key === 'ArrowRight') { droite = true; e.preventDefault(); } };
+    const ku = (e) => { if (e.key === 'ArrowLeft') gauche = false; if (e.key === 'ArrowRight') droite = false; };
+    document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
+    const tenir = (btn, sens) => {
+      const on = (e) => { e.preventDefault(); if (sens < 0) gauche = true; else droite = true; };
+      const off = () => { if (sens < 0) gauche = false; else droite = false; };
+      btn.addEventListener('pointerdown', on); ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, off));
+    };
+    tenir(app.querySelector('#j-g'), -1); tenir(app.querySelector('#j-d'), 1);
+    cv.addEventListener('pointerdown', (e) => { cible = e.offsetX; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove', (e) => { if (cible != null) cible = e.offsetX; });
+    ['pointerup', 'pointercancel'].forEach((ev) => cv.addEventListener(ev, () => { cible = null; }));
+    window.addEventListener('resize', taille);
+    const arreter = () => { fini = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); window.removeEventListener('resize', taille); window.__jeuStop = null; };
+    window.__jeuStop = () => { if (!fini) { arreter(); enregistrer(); } };
+    app.querySelector('#j-quit').onclick = () => finJeu();
+    window.__gc.jeu = { etat: () => ({ t, score, vies, regle, items: items.map((i) => ({ bon: i.bon, x: i.x, y: i.y })), J: { x: J.x, w: J.w } }) };
+
+    function enregistrer() {
+      const duree = Math.round(t), moi = getMoi(), cleR = 'record:' + mode + ':' + idEleve(), ancien = store.get(cleR, 0);
+      if (score > ancien) store.set(cleR, score);
+      if (C.urlScript && moi && duree >= 5 && score > 0) {
+        const file = store.get('file', []);
+        file.push({ type: 'jeu', id: uid(), date: new Date().toISOString(), prenom: moi.prenom, classe: moi.classe, mode, score, duree });
+        store.set('file', file);
+        return envoyer();
+      }
+      return Promise.resolve('off');
+    }
+    function finJeu() {
+      if (fini) return;
+      const ancien = record(mode);
+      arreter();
+      const envoi = enregistrer();
+      const nouveau = score > ancien, debloque = mode === 'normal' && ancien < JEU.seuilExpert && score >= JEU.seuilExpert;
+      app.innerHTML = '<div class="wrap jeu-page"><div class="end"><span class="eyebrow">' + JEU.nom + (mode === 'expert' ? ' · mode expert' : '') + '</span>' +
+        '<div class="big">' + score + '<small> pts</small></div><h1>' + (nouveau ? 'Nouveau record !' : 'Partie terminée') + '</h1>' +
+        (debloque ? '<p class="send ok">Bravo, tu as débloqué le mode expert !</p>' : '') +
+        '<p class="jeu-note" id="j-envoi">' + (C.urlScript ? (Math.round(t) >= 5 && score > 0 ? 'Envoi de ton score au classement…' : '') : '') + '</p>' +
+        '<div class="btn-row"><button class="btn btn-primary" id="j-encore">Rejouer</button><a class="btn" href="#">Faire des exercices</a></div>' +
+        '<p class="jeu-note">Astuce : une série d’exercices à 8/10 ou plus te donne une vie bonus pour ta prochaine partie.</p>' +
+        '<section id="podiums" class="podiums"></section></div></div>';
+      const enc = app.querySelector('#j-encore'); if (enc) enc.onclick = () => jouer(mode);
+      envoi.then((etat) => {
+        const el = document.getElementById('j-envoi'); if (!el || !C.urlScript) return;
+        el.textContent = etat === 'ok' ? 'Score envoyé au classement.' : etat === 'off' ? '' : 'Pas de connexion : ton score sera envoyé plus tard.';
+        afficherPodiums(document.getElementById('podiums'));
+      });
+    }
+    raf = requestAnimationFrame((n) => { dernier = n; etape(n); });
+  }
+
   /* ---------- Démarrage ---------- */
-  window.__gc = { question: () => (S ? S.q : null), lireFacto: (s) => lireFacto(s) }; // aide aux tests automatiques
+  window.__gc = Object.assign(window.__gc || {}, { question: () => (S ? S.q : null), lireFacto: (s) => lireFacto(s) }); // aide aux tests automatiques
   route();
   envoyer(); // renvoie les résultats restés en attente (hors connexion)
 })();

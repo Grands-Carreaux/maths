@@ -181,7 +181,7 @@
     const nums = items.map((it, i) => sg(it, i) + it.n * D / it.d).join('');
     const N = items.reduce((s, it) => s + it.s * it.n * D / it.d, 0);
     if (items.length > 1) out.push({ m: F(nums, D), c: 'On garde le dénominateur et on calcule les numérateurs.' });
-    out.push({ m: F(N, D) });
+    out.push({ m: N < 0 ? M + F(-N, D) : F(N, D) });
     if (gcd(N, D) > 1) out.push({ m: fracQ(Q(N, D)), c: 'On simplifie.' });
     return out;
   }
@@ -198,13 +198,32 @@
     }
     chaineSomme(flat).forEach((l) => lignes.push({ m: '= ' + l.m, c: l.c }));
     return {
-      type: 'nombre', enonce: dispItems(items), reponse: valItems(items), prefixe: '= ', clavier: '/', irreductible: 'conseil',
+      type: 'nombre', enonce: dispItems(items), reponse: valItems(items), prefixe: '= ', clavier: '-/', irreductible: 'conseil',
       correction: { texte, lignes }
     };
   }
   const fracItem = (d, s = 1) => { let n; do { n = rnd(1, 2 * d - 1); } while (gcd(n, d) !== 1 && d > 1); return { s, n, d }; };
   const diviseurs = (D) => { const r = []; for (let k = 2; k < D; k++) if (D % k === 0) r.push(k); return r; };
   const positifPartout = (items) => valItems(items).n > 0 && items.every((it) => !it.g || valItems(it.g).n > 0);
+  // Parenthèses positives ; résultat final non nul, négatif environ 4 fois sur 10 quand il y a une soustraction.
+  const avecSoustraction = (items) => items.some((it, i) => (i > 0 && it.s < 0) || (it.g && avecSoustraction(it.g)));
+  function tirerSomme(fabrique) {
+    const veutNegatif = Math.random() < 0.4;
+    for (let essai = 0; essai < 400; essai++) {
+      const items = fabrique(), v = valItems(items);
+      if (v.n === 0 || items.some((it) => it.g && valItems(it.g).n <= 0)) continue;
+      if (items.some((it) => it.g && it.g[0].d === it.g[1].d && it.g[0].n === it.g[1].n)) continue;
+      if (!avecSoustraction(items) || (v.n < 0) === veutNegatif) return items;
+    }
+    return fabrique();
+  }
+  // Deux fractions : dénominateur multiple de l'autre
+  const deuxMultiple = () => { const b = rnd(2, 9), D = b * rnd(2, 5), it = ordreHasard(fracItem(b), fracItem(D)); it[1].s = Math.random() < 0.6 ? -1 : 1; return it; };
+  // Deux fractions : dénominateurs premiers entre eux
+  const deuxPremiers = () => { let b, d; do { b = rnd(2, 12); d = rnd(2, 12); } while (b === d || gcd(b, d) !== 1 || b * d > 90); const it = [fracItem(b), fracItem(d)]; it[1].s = Math.random() < 0.6 ? -1 : 1; return it; };
+  const TXT_MULTIPLE = 'Pour additionner ou soustraire des fractions, il faut le même dénominateur. Ici, l\u2019un des dénominateurs est dans la table de l\u2019autre : c\u2019est lui le dénominateur commun.';
+  const TXT_PREMIERS = 'Les dénominateurs n\u2019ont aucun diviseur commun : le dénominateur commun est leur produit. On multiplie chaque fraction par le dénominateur de l\u2019autre.';
+  const TXT_NEG = ' Si le résultat est négatif, le signe − peut s\u2019écrire devant la fraction, au numérateur ou au dénominateur.';
 
   /* =====================================================================
      THÈMES
@@ -502,35 +521,29 @@
       resume: 'Mettre au même dénominateur, calculer, puis simplifier le résultat.',
       consigne: 'Calcule. Simplifie le résultat si possible.',
       niveaux: [
-        { nom: 'Deux fractions', gen() {
-          let items;
-          do {
-            const b = rnd(2, 8), k = Math.random() < 0.2 ? 1 : rnd(2, 4), D = b * k;
-            items = ordreHasard(fracItem(b), fracItem(D)); items[1].s = Math.random() < 0.5 ? 1 : -1;
-          } while (!positifPartout(items));
-          return sommeQ(items, 'Pour additionner ou soustraire des fractions, il faut le même dénominateur. On garde ce dénominateur et on additionne (ou soustrait) les numérateurs.');
+        { nom: 'Un dénominateur dans la table de l\u2019autre', gen() {
+          return sommeQ(tirerSomme(deuxMultiple), TXT_MULTIPLE + TXT_NEG);
         } },
-        { nom: 'Trois fractions', gen() {
-          let items;
-          do {
+        { nom: 'Dénominateurs premiers entre eux', gen() {
+          return sommeQ(tirerSomme(deuxPremiers), TXT_PREMIERS + TXT_NEG);
+        } },
+        { nom: 'Mélange, trois fractions et parenthèses', gen() {
+          const f = pick([1, 2, 3, 3, 4, 4]);
+          if (f === 1) return sommeQ(tirerSomme(deuxMultiple), TXT_MULTIPLE + TXT_NEG);
+          if (f === 2) return sommeQ(tirerSomme(deuxPremiers), TXT_PREMIERS + TXT_NEG);
+          if (f === 3) return sommeQ(tirerSomme(() => {
             const D = pick([6, 8, 10, 12, 12, 15, 18, 20, 24]), dv = shuffle(diviseurs(D)).slice(0, 2);
-            items = shuffle([fracItem(D), fracItem(dv[0]), fracItem(dv[1] || D)]);
-            items[1].s = pick([1, -1]); items[2].s = pick([1, -1]);
-          } while (!positifPartout(items));
-          return sommeQ(items, 'On cherche un dénominateur commun (ici, l’un des dénominateurs est un multiple des autres), puis on calcule de gauche à droite.');
-        } },
-        { nom: 'Parenthèses et dénominateurs quelconques', gen() {
-          const f = rnd(1, 4); let items;
-          do {
+            const items = shuffle([fracItem(D), fracItem(dv[0]), fracItem(dv[1] || D)]);
+            items[1].s = pick([1, -1]); items[2].s = pick([1, -1, -1]);
+            return items;
+          }), 'On cherche un dénominateur commun (ici, l\u2019un des dénominateurs est un multiple des autres), puis on calcule de gauche à droite.' + TXT_NEG);
+          const g = rnd(1, 3);
+          return sommeQ(tirerSomme(() => {
             const D = pick([12, 18, 20, 24, 30, 36]), dv = diviseurs(D).concat(D), d = () => pick(dv);
-            if (f === 1) items = [fracItem(d()), { s: 1, g: [fracItem(d()), fracItem(d(), -1)] }];
-            else if (f === 2) items = [fracItem(d()), { s: -1, g: [fracItem(d()), fracItem(d(), -1)] }];
-            else if (f === 3) items = [{ s: 1, g: [fracItem(d()), fracItem(d(), -1)] }, { s: 1, g: [fracItem(d()), fracItem(d(), -1)] }];
-            else { let b, c; do { b = rnd(2, 12); c = rnd(2, 12); } while (lcm(b, c) === Math.max(b, c) || lcm(b, c) > 60); items = [fracItem(b), fracItem(c, pick([1, -1]))]; }
-          } while (!positifPartout(items) || items.some((it) => it.g && it.g[0].d === it.g[1].d && it.g[0].n === it.g[1].n));
-          return sommeQ(items, f === 4
-            ? 'Aucun dénominateur n’est un multiple de l’autre : on cherche un multiple commun aux deux (le plus petit possible).'
-            : 'On calcule d’abord ce qui est entre parenthèses, puis le reste, de gauche à droite.');
+            if (g === 1) return [fracItem(d()), { s: pick([1, -1]), g: [fracItem(d()), fracItem(d(), -1)] }];
+            if (g === 2) return [{ s: 1, g: [fracItem(d()), fracItem(d(), -1)] }, fracItem(d(), -1)];
+            return [{ s: 1, g: [fracItem(d()), fracItem(d(), -1)] }, { s: pick([1, -1]), g: [fracItem(d()), fracItem(d(), -1)] }];
+          }), 'On calcule d\u2019abord ce qui est entre parenthèses, puis le reste, de gauche à droite.' + TXT_NEG);
         } }
       ]
     }

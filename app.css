@@ -299,3 +299,92 @@ td.act { text-align: right; }
 .flash { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--ok-bg); color: var(--ok); font-weight: 600; }
 .confirm { min-width: 300px; }
 .confirm .btn { white-space: nowrap; }
+
+/* ---------- Identification et portail par niveau ---------- */
+.field .aide { display: none; font-weight: 400; font-size: 12px; color: var(--muted); }
+.field.aide-vue .aide { display: block; }
+.niveaux { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.niv-label { font-weight: 700; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .06em; margin-right: 4px; }
+.niv {
+  min-width: 96px; min-height: 52px; padding: 0 22px; border-radius: 14px; border: 2px solid var(--border);
+  background: var(--surface); font-family: var(--f-head); font-size: 22px; font-weight: 800; color: var(--muted);
+}
+.niv[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--blue-ink); }
+.domaine { margin-bottom: 22px; }
+.domaine h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 10px; }
+
+/* ---------- Carte du jeu (portail et fin de série) ---------- */
+.jeu-carte, .gain {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 22px; text-decoration: none; color: inherit;
+  border-color: var(--margin); background: linear-gradient(90deg, var(--margin-soft), var(--surface) 70%);
+}
+.gain { margin: 0; width: 100%; text-align: left; }
+.jeu-icone { width: 48px; height: 48px; flex: none; }
+.jeu-icone svg { width: 100%; height: 100%; }
+.ij-cahier { fill: var(--blue); }
+.ij-marge { stroke: var(--margin); stroke-width: 2.5; }
+.ij-n { font: 800 13px system-ui, sans-serif; fill: var(--ink); }
+.ij-d { fill: var(--ko); }
+.jeu-txt { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.jeu-txt strong { font-family: var(--f-head); font-size: 18px; }
+.jeu-txt span { color: var(--muted); font-size: 14px; }
+.pastilles { display: inline-flex; gap: 5px; flex: none; }
+.pastilles i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--margin); }
+.pastilles i.on { background: var(--margin); }
+
+/* ---------- Page du jeu ---------- */
+.jeu-panneau { padding: 18px; display: grid; gap: 12px; margin-bottom: 18px; }
+.jeu-ligne { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.jeu-note { color: var(--muted); font-size: 14px; margin: 0; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.podiums { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; width: 100%; }
+.podium-bloc { padding: 16px 18px; display: grid; gap: 8px; text-align: left; }
+.podium-bloc h2 { font-size: 18px; }
+.podium-bloc h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 4px; }
+.podium { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.podium li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--paper); }
+.podium .rang { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: var(--border); color: var(--ink); flex: none; }
+.podium .p1 .rang { background: #e8b923; color: #1a2744; }
+.podium .p2 .rang { background: #c4cad6; color: #1a2744; }
+.podium .p3 .rang { background: #d39a6a; color: #1a2744; }
+.podium .nom { flex: 1; min-width: 0; font-weight: 600; }
+.podium .nom small { color: var(--muted); font-weight: 400; }
+.podium b { font-variant-numeric: tabular-nums; }
+
+.jeu-play {
+  height: 100dvh; display: flex; flex-direction: column; gap: 8px; max-width: 640px; margin: 0 auto;
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-block: calc(10px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-bottom, 0px));
+  user-select: none; -webkit-user-select: none;
+}
+.vies { display: inline-flex; gap: 6px; flex: 1; }
+.vies i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ko); }
+.vies i.on { background: var(--ko); }
+.jeu-score { font-family: var(--f-head); font-size: 26px; font-weight: 800; color: var(--blue); font-variant-numeric: tabular-nums; }
+.jeu-bandeau { position: relative; overflow: hidden; padding: 8px 12px; border-radius: 10px; background: var(--blue-soft); color: var(--blue); font-weight: 700; text-align: center; font-size: 15px; }
+.jeu-bandeau.bonus { background: var(--margin); color: var(--surface); animation: clignote 0.6s 3; }
+.jeu-bandeau.expert { background: var(--ink); color: var(--surface); }
+.jeu-bandeau i { position: absolute; left: 0; bottom: 0; height: 3px; background: currentColor; opacity: .6; }
+@keyframes clignote { 50% { opacity: .55; } }
+.jeu-cadre { flex: 1; min-height: 200px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); touch-action: none; }
+.jeu-cadre canvas { display: block; }
+.jeu-cadre.choc { animation: choc .3s; }
+@keyframes choc { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.jeu-ctrl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.jeu-ctrl .key { min-height: 64px; font-size: 28px; touch-action: none; }
+
+/* ---------- Questions à choix et durées ---------- */
+.pad.choix { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.choix-q { margin: 0; text-align: center; font-weight: 700; font-size: 18px; }
+.choix-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
+.choix-grid.n3 { grid-template-columns: repeat(3, 1fr); }
+.key.opt { min-height: 64px; font-size: 22px; padding: 6px 10px; line-height: 1.2; }
+.key.unite { font-size: 20px; }
+.answer .u { font-size: .6em; margin-left: .15em; color: var(--muted); }
+
+/* ---------- Vies bonus et changement d'élève ---------- */
+.vies i.bonus { border-color: var(--margin); }
+.vies i.bonus.on { background: var(--margin); }
+.me { flex-wrap: wrap; }
+.confirm-eleve { padding: 16px 18px; margin-bottom: 18px; display: grid; gap: 10px; border-color: var(--blue); }
+.confirm-eleve p { margin: 0; }

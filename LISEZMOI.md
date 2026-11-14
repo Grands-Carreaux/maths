@@ -76,15 +76,16 @@ Ouvrez `config.js` avec un éditeur de texte simple (Bloc-notes sur Windows, Tex
 window.CONFIG = {
   nomSite: 'Grands Carreaux',
   urlScript: '',
-  classes: ['4e 2', '4e 4', '4e 6', '3e 6'],
+  classes: ['4e 1', '4e 2', '4e 3', '4e 4', '4e 5', '4e 6', '4e 7', '3e 1', '3e 2', '3e 3', '3e 4', '3e 5', '3e 6', '3e 7'],
   nbQuestions: 10
 };
 ```
 
 - **`urlScript`** : collez entre les deux guillemets simples l'adresse copiée à l'étape 1.
   Exemple : `urlScript: 'https://script.google.com/macros/s/AKfycb…/exec',`
-- **`classes`** : vos classes sont déjà renseignées. Elles apparaissent dans le menu déroulant des élèves.
-  Pour en ajouter une, ajoutez-la entre guillemets, séparée par une virgule.
+- **`classes`** : les classes du menu déroulant des élèves. Une option **« Autre »** est toujours ajoutée en fin de liste
+  (élève d'une autre classe, professeur qui teste) : la personne précise alors qui elle est, par exemple « 5e 2 » ou « Prof ».
+  Le début du nom de la classe (« 4e » ou « 3e ») sert à présélectionner le niveau sur le portail.
 - **`nomSite`** : le nom affiché en haut du portail. Vous pouvez le changer.
 - **`nbQuestions`** : le nombre de questions par série.
 
@@ -129,8 +130,14 @@ Il suffit d'y copier les fichiers.
 
 - Partagez l'adresse sur l'ENT ou Pronote, ou affichez-la en classe sous forme de QR code.
 - Sur tablette ou téléphone, l'élève peut ajouter le site à son écran d'accueil (menu Partager > « Sur l'écran d'accueil »).
-- Lors de sa première visite, l'élève tape son prénom avec l'initiale de son nom, puis choisit sa classe. L'appareil s'en souvient.
-- Sur une **tablette partagée** en classe, chaque élève clique sur **Modifier** en haut du portail pour mettre son propre nom avant de commencer.
+- Lors de sa première visite, l'élève tape son **prénom** (avec l'initiale de son nom seulement si un camarade de sa classe
+  a le même prénom), puis choisit sa classe, ou « Autre » en précisant qui il est. L'appareil s'en souvient.
+- Le portail s'ouvre sur son **niveau** (4e ou 3e, d'après sa classe). Deux gros boutons permettent de changer de niveau.
+  Dans chaque niveau, les exerciseurs sont rangés par domaine.
+- Sur une **tablette partagée** en classe, chaque élève clique sur **Changer d'élève** en haut du portail : la tablette oublie
+  le prénom et la classe de l'élève précédent, et affiche un formulaire vide. Les séries en pause, records et vies bonus
+  restent rangés au nom de chaque élève : il les retrouve en retapant le même prénom et la même classe.
+- Le bouton **Modifier** sert à corriger une faute dans son prénom ou sa classe.
 - Hors connexion, le résultat est mis de côté, puis envoyé automatiquement la prochaine fois que le site est ouvert.
 
 **Faire une pause au milieu d'une série.** L'élève n'est pas obligé de faire les 10 questions d'un coup.
@@ -144,6 +151,20 @@ Il suffit d'y copier les fichiers.
   En revanche, une série commencée en classe ne peut pas être reprise sur le téléphone de l'élève à la maison.
 - Une série en pause depuis plus de 30 jours est oubliée.
 
+**Le jeu « Pluie de nombres ».** Une récompense pour motiver les élèves.
+- Le jeu est **accessible à tout moment**, avec **3 vies** par partie.
+- **Chaque série terminée avec 8/10 ou plus donne une vie bonus** (3 vies bonus au maximum en réserve), utilisée à la
+  partie suivante. La carte du jeu, en haut du portail, indique par exemple « 3 vies + 2 vies bonus ».
+- Règle : on déplace un cahier avec les flèches (tactiles ou du clavier), on **attrape les entiers** (+10 points)
+  et on **évite les décimaux** (une vie perdue). La pluie accélère.
+- Toutes les 40 secondes environ, un **bonus** de 10 secondes change la règle : « attrape les fractions dont le quotient
+  est un entier » ou « attrape les multiples de 5 » (+30 points ; une mauvaise prise coûte une vie).
+- **Mode expert**, débloqué à 300 points en mode normal : la règle change toutes les 15 secondes
+  (nombres premiers, multiples de 3, de 5 ou de 10).
+- **Classement** : chaque élève voit son record, le podium de sa classe et le podium de tout le collège (les 3 meilleurs),
+  séparément pour le mode normal et le mode expert, sur toute l'année.
+- Les scores impossibles (trop élevés pour la durée de la partie) sont ignorés automatiquement.
+
 ---
 
 ## Étape 5 : consulter les résultats
@@ -151,11 +172,13 @@ Il suffit d'y copier les fichiers.
 - Lien **Espace professeur** en bas du portail, ou adresse du site suivie de `#prof`, puis votre code.
 - Onglet **Par élève** : nombre de séries, taux de réussite, meilleur score par exerciseur et par niveau, dernière activité.
 - Onglet **Toutes les séries** : la liste chronologique.
+- Onglet **Jeu** : les parties de Pluie de nombres (élève, classe, mode, score, durée), avec un bouton **Supprimer**
+  pour retirer un score suspect ou un prénom déplacé du classement.
 - Filtres par classe, exerciseur, période et prénom. Le bouton **Actualiser** recharge les derniers résultats.
 - Le tableur Google contient toutes les données brutes, avec le détail question par question, pour vos tris ou exports.
 
 **Supprimer un élève ou une série.** Utile pour un prénom fantaisiste, une faute de frappe ou un essai.
-- Onglet **Par élève** : le bouton **Supprimer** au bout de la ligne efface l'élève et **toutes** ses séries,
+- Onglet **Par élève** : le bouton **Supprimer** au bout de la ligne efface l'élève, **toutes** ses séries et ses scores du jeu,
   quelle que soit la période choisie dans les filtres.
 - Onglet **Toutes les séries** : le bouton **Supprimer** efface une seule série.
 - Une confirmation est demandée dans la ligne (« Oui, supprimer » ou « Annuler »). Les lignes sont alors effacées du tableur Google.
@@ -189,7 +212,7 @@ Le clavier propose les chiffres, les lettres de l'exercice, +, −, ² et ³, ai
 |---|---|---|---|
 | Fractions égales | 3/4 = ?/20 | 15/25 = ?/5 | 6/9 = ?/15 (simplifier, puis multiplier) |
 | Simplifier une fraction | une division | plusieurs étapes (81/108) | grands nombres et signes − |
-| Additionner et soustraire | deux fractions | trois fractions (7/12 + 3/4 − 1/3) | parenthèses, dénominateurs quelconques |
+| Additionner et soustraire | un dénominateur dans la table de l'autre (3/4 − 5/12) | dénominateurs premiers entre eux (2/7 − 1/6) | mélange, trois fractions, parenthèses |
 
 ### Règles de correction
 
@@ -199,11 +222,31 @@ Le clavier propose les chiffres, les lettres de l'exercice, +, −, ² et ³, ai
   Une réponse développée est refusée (« ce n'est pas un produit »).
   Une factorisation incomplète aussi : 3(2x² − 5x) pour 6x² − 15x, où il reste x en facteur commun.
 - **Simplifier une fraction** : une fraction qui n'est pas irréductible est comptée fausse (« Presque ! »).
-- **Additionner et soustraire** : un résultat juste mais non simplifié est compté juste, avec un conseil pour le simplifier.
+- **Additionner et soustraire** : environ 4 soustractions sur 10 donnent un résultat négatif. Le signe − est accepté
+  devant la fraction, au numérateur (−7/12) ou au dénominateur (7/−12). Un résultat juste mais non simplifié
+  est compté juste, avec un conseil pour le simplifier.
 
 ---
 
 ## Modifier le site plus tard
+
+### Mise à jour de novembre 2026 (portail par niveau, jeu, nouvelles classes, changer d'élève)
+
+Cette mise à jour touche le site **et** le script Google (le jeu enregistre ses scores dans un nouvel onglet « Jeu » du tableur).
+
+1. **GitHub** : déposez `app.js`, `app.css`, `themes.js`, `LISEZMOI.md` et le dossier `apps-script`
+   (**Add file > Upload files**, puis **Commit changes**). Ne déposez pas `config.js` : votre version contient l'adresse de votre script.
+2. **Classes** : sur GitHub, cliquez sur `config.js`, puis sur le crayon ✏️ en haut à droite du fichier. Remplacez la ligne `classes: …` par :
+   ```js
+   classes: ['4e 1', '4e 2', '4e 3', '4e 4', '4e 5', '4e 6', '4e 7', '3e 1', '3e 2', '3e 3', '3e 4', '3e 5', '3e 6', '3e 7'],
+   ```
+   puis cliquez sur **Commit changes…** (deux fois).
+3. **Script Google** (fenêtre privée, compte Maths) : ouvrez le tableur, puis **Extensions > Apps Script**.
+   Effacez tout le code, collez le nouveau `apps-script/Code.gs`, **remettez votre code** à la ligne `CODE_PROF`, enregistrez.
+   Puis **Déployer > Gérer les déploiements > ✏️ > Version : Nouvelle version > Déployer**. L'adresse ne change pas.
+4. Testez : une série jusqu'au bout, une partie du jeu, puis l'onglet **Jeu** de la page professeur.
+
+### Marche à suivre habituelle
 
 Pour toute modification, la marche à suivre est la même :
 1. Claude vous fournit le ou les fichiers modifiés.
@@ -230,7 +273,8 @@ les résultats, ou son adresse changerait pour les élèves.
 
 ## Données personnelles (RGPD)
 
-- Seules ces données sont collectées : prénom et initiale, classe, exerciseur, niveau, score, durée et détail juste/faux par question.
+- Seules ces données sont collectées : prénom, classe, exerciseur, niveau, score, durée et détail juste/faux par question,
+  ainsi que les scores du jeu. Le classement du jeu affiche le prénom et la classe des 3 meilleurs à tous les élèves du collège.
   Il n'y a ni compte élève, ni e-mail, ni mot de passe.
 - Elles sont stockées dans **votre** Google Drive. Le site lui-même ne garde rien sur un serveur ;
   seul le meilleur score de l'élève est gardé sur son propre appareil.
