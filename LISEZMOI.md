@@ -223,6 +223,16 @@ sur trois, rédigée sans figure. Un rappel « Prépare ta calculatrice ! » s'a
 La correction suit la rédaction du cours : « Dans le triangle ABC rectangle en A, d'après le théorème de Pythagore :
 BC² = AB² + AC² … BC = √… ≈ … cm ». Pour la réciproque : plus grand côté, calcul des deux membres, conclusion.
 
+### Grandeurs et mesures
+
+| Exerciseur | ★ | ★★ | ★★★ |
+|---|---|---|---|
+| Vitesses et conversions | durées : 2,35 h = 2 h 21 min ; 432 min = 7,2 h ; 2 h 45 min = 165 min ; 395 s = 6 min 35 s | vitesse, distance ou durée (v = d ÷ t), durées en heures décimales ou en h min | km/h ↔ m/s (÷ 3,6 et × 3,6), problèmes : guépard, voilier, orage |
+
+Les nombres sont choisis pour que les résultats tombent juste ; seuls quelques problèmes du niveau ★★★ demandent
+explicitement un arrondi au dixième. Les réponses en « h min » se tapent avec les touches h, min et s du clavier.
+Rappel « Prépare ta calculatrice ! » à l'ouverture de l'exerciseur.
+
 ### Fractions
 
 | Exerciseur | ★ | ★★ | ★★★ |

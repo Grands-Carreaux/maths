@@ -373,6 +373,101 @@
   }
 
   /* =====================================================================
+     GRANDEURS ET MESURES : VITESSES ET CONVERSIONS
+     Résultats exacts, sauf quand la consigne demande un arrondi au dixième.
+     ===================================================================== */
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  const dv = (x) => String(r3(x)).replace('.', ',');                 // nombre décimal écrit avec une virgule
+  const hmin = (sec) => { const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return (h ? h + ' h' : '') + (h && m ? ' ' : '') + (m ? m + ' min' : '') || '0 min'; };
+  function nombreQ(enonce, valeur, suffixe, prefixe, texte, lignes, arrondi) {
+    return { type: 'nombre', decimal: true, enonce: '<p class="txt">' + enonce + '</p>', reponse: decQ(r3(valeur)), prefixe: prefixe || '= ', suffixe, clavier: ',',
+      consigne: 'Vitesses et conversions', correction: { texte, lignes } };
+  }
+  function dureeQ(enonce, secondes, unites, texte, lignes) {
+    return { type: 'duree', enonce: '<p class="txt">' + enonce + '</p>', reponse: secondes, unites, prefixe: '= ', consigne: 'Vitesses et conversions', correction: { texte, lignes } };
+  }
+
+  // ★ Conversions de durées
+  const conversionsDurees = [
+    () => { // heures décimales → h min
+      const h = rnd(1, 9), c = rnd(1, 19) * 5, x = h + c / 100, m = c * 60 / 100;
+      return dureeQ('Convertis <strong>' + dv(x) + ' h</strong> en heures et minutes.', h * 3600 + m * 60, ['h', 'min'], 'Le chiffre avant la virgule donne les heures. La partie décimale est une fraction d’heure : on la multiplie par 60 pour l’avoir en minutes.',
+        [{ m: dv(x) + ' h = ' + h + ' h + ' + dv(c / 100) + ' h' }, { m: dv(c / 100) + ' h = ' + dv(c / 100) + ' × 60 min = ' + m + ' min' }, { m: dv(x) + ' h = ' + h + ' h ' + m + ' min' }]);
+    },
+    () => { // minutes → heures décimales
+      const m = rnd(3, 60) * pick([6, 6, 3, 12]), x = m / 60;
+      return nombreQ('Convertis <strong>' + m + ' min</strong> en heures (écriture décimale).', x, 'h', '= ', 'Une heure, c’est 60 minutes : pour passer des minutes aux heures, on divise par 60.',
+        [{ m: m + ' min = ' + m + ' ÷ 60 h' }, { m: '= ' + dv(x) + ' h' }]);
+    },
+    () => { // h min → minutes
+      const h = rnd(1, 6), m = rnd(1, 59);
+      return nombreQ('Convertis <strong>' + h + ' h ' + m + ' min</strong> en minutes.', h * 60 + m, 'min', '= ', 'Une heure, c’est 60 minutes.',
+        [{ m: h + ' h ' + m + ' min = ' + h + ' × 60 min + ' + m + ' min' }, { m: '= ' + (h * 60) + ' min + ' + m + ' min = ' + (h * 60 + m) + ' min' }]);
+    },
+    () => { // h min → heures décimales
+      const h = rnd(0, 5), m = pick([6, 12, 15, 18, 24, 30, 36, 42, 45, 48, 54]), x = h + m / 60;
+      return nombreQ('Convertis <strong>' + (h ? h + ' h ' : '') + m + ' min</strong> en heures (écriture décimale).', x, 'h', '= ', 'On convertit les minutes en heures en divisant par 60, puis on ajoute les heures.',
+        [{ m: m + ' min = ' + m + ' ÷ 60 h = ' + dv(m / 60) + ' h' }, { m: (h ? h + ' h ' : '') + m + ' min = ' + dv(x) + ' h' }]);
+    },
+    () => { // secondes → min s
+      const s = rnd(70, 590);
+      return dureeQ('Convertis <strong>' + s + ' s</strong> en minutes et secondes.', s, ['min', 's'], 'Une minute, c’est 60 secondes : on cherche combien de fois 60 il y a dans ' + s + '.',
+        [{ m: s + ' = ' + Math.floor(s / 60) + ' × 60 + ' + (s % 60) }, { m: s + ' s = ' + Math.floor(s / 60) + ' min ' + (s % 60) + ' s' }]);
+    }
+  ];
+
+  // ★★ v = d ÷ t
+  const MOBILES = [
+    { qui: 'Un automobiliste', verbe: 'roule', v: [60, 130], u: 'km/h', d: 'km' }, { qui: 'Un train', verbe: 'roule', v: [120, 300], u: 'km/h', d: 'km' },
+    { qui: 'Un cycliste', verbe: 'pédale', v: [12, 36], u: 'km/h', d: 'km' }, { qui: 'Un avion', verbe: 'vole', v: [600, 900], u: 'km/h', d: 'km' },
+    { qui: 'Un randonneur', verbe: 'marche', v: [3, 6], u: 'km/h', d: 'km' }, { qui: 'Un scooter', verbe: 'roule', v: [30, 45], u: 'km/h', d: 'km' }
+  ];
+  const TXT_V = 'Vitesse moyenne = distance ÷ durée. On peut aussi écrire d = v × t et t = d ÷ v, avec des unités cohérentes (km, h et km/h).';
+  function calculVDT() {
+    const mb = pick(MOBILES), quoi = pick(['v', 'd', 't']);
+    let v = rnd(mb.v[0], mb.v[1]); if (v > 100) v = Math.round(v / 10) * 10; else if (v > 20) v = Math.round(v / 2) * 2;
+    let t, tTxt;
+    if (Math.random() < 0.6) { t = pick([1, 2, 3, 4, 5, 1.5, 2.5, 0.5, 3.5]); tTxt = dv(t) + ' h'; }
+    else { const m = pick([15, 30, 45, 20, 40]), h = rnd(0, 3); t = h + m / 60; v = Math.round(v / 12) * 12 || 12; tTxt = (h ? h + ' h ' : '') + m + ' min'; }
+    const d = r3(v * t);
+    if (quoi === 'v') return nombreQ(mb.qui + ' a parcouru <strong>' + dv(d) + ' ' + mb.d + '</strong> en <strong>' + tTxt + '</strong>. Quelle a été sa vitesse moyenne ?', v, mb.u, 'v = ', TXT_V,
+      [{ m: 'v = d ÷ t' }].concat(Number.isInteger(t * 2) ? [] : [{ m: 't = ' + tTxt + ' = ' + dv(t) + ' h', c: 'On convertit la durée en heures.' }]).concat([{ m: 'v = ' + dv(d) + ' ÷ ' + dv(t) }, { m: 'v = ' + dv(v) + ' ' + mb.u }]));
+    if (quoi === 'd') return nombreQ(mb.qui + ' ' + mb.verbe + ' pendant <strong>' + tTxt + '</strong> à la vitesse moyenne de <strong>' + dv(v) + ' ' + mb.u + '</strong>. Quelle distance parcourt-il ?', d, mb.d, 'd = ', TXT_V,
+      [{ m: 'd = v × t' }].concat(Number.isInteger(t * 2) ? [] : [{ m: 't = ' + tTxt + ' = ' + dv(t) + ' h', c: 'On convertit la durée en heures.' }]).concat([{ m: 'd = ' + dv(v) + ' × ' + dv(t) }, { m: 'd = ' + dv(d) + ' ' + mb.d }]));
+    // durée : en heures décimales si elle tombe juste, sinon en h min
+    const sec = Math.round(t * 3600);
+    if (Number.isInteger(t * 2)) return nombreQ(mb.qui + ' parcourt <strong>' + dv(d) + ' ' + mb.d + '</strong> à la vitesse moyenne de <strong>' + dv(v) + ' ' + mb.u + '</strong>. Combien de temps dure le trajet ?', t, 'h', 't = ', TXT_V,
+      [{ m: 't = d ÷ v' }, { m: 't = ' + dv(d) + ' ÷ ' + dv(v) }, { m: 't = ' + dv(t) + ' h' }]);
+    const q = dureeQ(mb.qui + ' parcourt <strong>' + dv(d) + ' ' + mb.d + '</strong> à la vitesse moyenne de <strong>' + dv(v) + ' ' + mb.u + '</strong>. Combien de temps dure le trajet ? Donne la réponse en heures et minutes.', sec, ['h', 'min'], TXT_V,
+      [{ m: 't = d ÷ v' }, { m: 't = ' + dv(d) + ' ÷ ' + dv(v) + ' = ' + dv(t) + ' h' }, { m: dv(t) + ' h = ' + hmin(sec), c: 'La partie décimale × 60 donne les minutes.' }]);
+    q.prefixe = 't = ';
+    return q;
+  }
+
+  // ★★★ Conversions km/h ↔ m/s (× 3,6 ou ÷ 3,6) et problèmes
+  const TXT_36 = '1 m/s = 3 600 m/h = 3,6 km/h. Pour passer des m/s aux km/h, on multiplie par 3,6 ; pour passer des km/h aux m/s, on divise par 3,6.';
+  const conversionsVitesses = [
+    () => { const k = rnd(2, 40), kmh = r3(k * 3.6); return nombreQ('Convertis <strong>' + dv(kmh) + ' km/h</strong> en m/s.', k, 'm/s', '= ', TXT_36, [{ m: dv(kmh) + ' km/h = ' + dv(kmh) + ' ÷ 3,6 m/s' }, { m: '= ' + k + ' m/s' }]); },
+    () => { const ms = rnd(2, 60) / pick([1, 1, 2, 10]), kmh = r3(ms * 3.6); return nombreQ('Convertis <strong>' + dv(ms) + ' m/s</strong> en km/h.', kmh, 'km/h', '= ', TXT_36, [{ m: dv(ms) + ' m/s = ' + dv(ms) + ' × 3,6 km/h' }, { m: '= ' + dv(kmh) + ' km/h' }]); },
+    () => { // le guépard : km/h → m/s puis distance
+      const kmh = pick([72, 90, 108, 100, 110, 112]), s = rnd(8, 25), ms = kmh / 3.6, d = Math.round(ms * s * 10) / 10;
+      return nombreQ('Un guépard court à <strong>' + kmh + ' km/h</strong> pendant <strong>' + s + ' s</strong>. Quelle distance parcourt-il, en mètres ? (arrondi au dixième)', d, 'm', 'd = ',
+        'Les unités doivent être cohérentes : la durée est en secondes, donc on convertit la vitesse en m/s.',
+        [{ m: kmh + ' km/h = ' + kmh + ' ÷ 3,6 m/s ≈ ' + dv(Math.round(ms * 1000) / 1000) + ' m/s', c: 'On garde le résultat exact dans la calculatrice.' }, { m: 'd = v × t = (' + kmh + ' ÷ 3,6) × ' + s }, { m: 'd ≈ ' + dv(d) + ' m' }], true);
+    },
+    () => { // le voilier : durée en h min, vitesse arrondie
+      const d = rnd(15, 60), h = rnd(1, 4), m = pick([10, 20, 25, 35, 40, 50, 55]), t = h + m / 60, v = Math.round(d / t * 10) / 10;
+      return nombreQ('Un voilier parcourt <strong>' + d + ' km</strong> en <strong>' + h + ' h ' + m + ' min</strong>. Quelle est sa vitesse moyenne en km/h ? (arrondi au dixième)', v, 'km/h', 'v = ', 'On convertit d’abord la durée en heures décimales, puis v = d ÷ t.',
+        [{ m: h + ' h ' + m + ' min = ' + h + ' h + ' + m + ' ÷ 60 h', c: m + ' ÷ 60 ne tombe pas juste : on garde le calcul exact.' }, { m: 'v = ' + d + ' ÷ (' + h + ' + ' + m + ' ÷ 60)' }, { m: 'v ≈ ' + dv(v) + ' km/h' }], true);
+    },
+    () => { // le son : 340 m/s
+      const s = rnd(2, 15), dkm = r3(340 * s / 1000);
+      return nombreQ('Le son se déplace à <strong>340 m/s</strong>. Tu entends le tonnerre <strong>' + s + ' s</strong> après l’éclair. À quelle distance est l’orage, en km ?', dkm, 'km', 'd = ', 'd = v × t donne une distance en mètres ; on la convertit ensuite en kilomètres (÷ 1 000).',
+        [{ m: 'd = 340 × ' + s + ' = ' + (340 * s) + ' m' }, { m: (340 * s) + ' m = ' + dv(dkm) + ' km' }]);
+    }
+  ];
+
+  /* =====================================================================
      THÈMES
      ===================================================================== */
   const THEMES = [
@@ -628,6 +723,19 @@
       consigne: 'Réciproque du théorème de Pythagore', rappel: 'Prépare ta calculatrice !',
       niveaux: [
         { nom: 'Le triangle est-il rectangle ?', gen: questionReciproque }
+      ]
+    },
+
+    /* ---------------- Grandeurs et mesures ---------------- */
+    {
+      id: 'vitesses', classes: ['4e', '3e'], domaine: 'Grandeurs et mesures',
+      titre: 'Vitesses et conversions',
+      resume: 'Convertir des durées, calculer une vitesse, une distance ou une durée, convertir des km/h en m/s.',
+      consigne: 'Calcule.', rappel: 'Prépare ta calculatrice !',
+      niveaux: [
+        { nom: 'Conversions de durées', gen: () => pick(conversionsDurees)() },
+        { nom: 'Vitesse, distance, durée', gen: calculVDT },
+        { nom: 'km/h et m/s, problèmes', gen: () => (Math.random() < 0.6 ? pick(conversionsVitesses.slice(0, 2)) : pick(conversionsVitesses.slice(2)))() }
       ]
     },
 
