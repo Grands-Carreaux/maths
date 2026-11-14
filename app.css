@@ -388,3 +388,26 @@ td.act { text-align: right; }
 .me { flex-wrap: wrap; }
 .confirm-eleve { padding: 16px 18px; margin-bottom: 18px; display: grid; gap: 10px; border-color: var(--blue); }
 .confirm-eleve p { margin: 0; }
+
+/* ---------- « Au tableau ! » : écran de jeu façon tableau de classe ---------- */
+body.en-jeu { background: #1d352c; color: #f4f1e4; }
+body.en-jeu .jeu-play .iconbtn { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.15); color: #f4f1e4; }
+body.en-jeu .vies i { border-color: #f4f1e4; }
+body.en-jeu .vies i.on { background: #f4f1e4; }
+body.en-jeu .vies i.bonus { border-color: #f2c94c; }
+body.en-jeu .vies i.bonus.on { background: #f2c94c; }
+body.en-jeu .jeu-score { color: #f4f1e4; font-family: "Chalkboard SE", "Segoe Print", "Comic Sans MS", var(--f-head); }
+.combo { display: inline-flex; gap: 3px; align-items: center; margin-right: 8px; }
+.combo i { width: 12px; height: 6px; border-radius: 3px; background: rgba(242, 201, 76, .25); }
+.combo i.on { background: #f2c94c; }
+body.en-jeu .jeu-bandeau { background: rgba(255,255,255,.08); color: #f4f1e4; font-family: "Chalkboard SE", "Segoe Print", "Comic Sans MS", var(--f-body); }
+body.en-jeu .jeu-bandeau.bonus { background: #f2c94c; color: #1d352c; }
+body.en-jeu .jeu-bandeau.expert { background: #8fd3f4; color: #1d352c; }
+body.en-jeu .jeu-cadre { border: 6px solid #8a5a33; border-bottom: 0; border-radius: 12px 12px 0 0; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+body.en-jeu .jeu-ctrl .key { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); color: #f4f1e4; box-shadow: none; }
+body.en-jeu .jeu-ctrl .key:active { background: rgba(255,255,255,.2); }
+.jeu-carte, .gain { border-color: #2f5a4b; background: linear-gradient(90deg, rgba(38, 69, 58, .14), var(--surface) 70%); }
+.ij-n { font: 800 13px "Chalkboard SE", "Comic Sans MS", system-ui, sans-serif; fill: #f4f1e4; }
+.ij-d { fill: #f2c94c; }
+.pastilles i { border-color: #2f7d5f; }
+.pastilles i.on { background: #2f7d5f; }

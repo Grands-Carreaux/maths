@@ -151,16 +151,20 @@ Il suffit d'y copier les fichiers.
   En revanche, une série commencée en classe ne peut pas être reprise sur le téléphone de l'élève à la maison.
 - Une série en pause depuis plus de 30 jours est oubliée.
 
-**Le jeu « Pluie de nombres ».** Une récompense pour motiver les élèves.
+**Le jeu « Au tableau ! ».** Une récompense pour motiver les élèves, dans un décor de tableau de classe.
 - Le jeu est **accessible à tout moment**, avec **3 vies** par partie.
 - **Chaque série terminée avec 8/10 ou plus donne une vie bonus** (3 vies bonus au maximum en réserve), utilisée à la
   partie suivante. La carte du jeu, en haut du portail, indique par exemple « 3 vies + 2 vies bonus ».
-- Règle : on déplace un cahier avec les flèches (tactiles ou du clavier), on **attrape les entiers** (+10 points)
-  et on **évite les décimaux** (une vie perdue). La pluie accélère.
+- Règle : l'élève déplace une petite craie avec les flèches (tactiles ou du clavier), **attrape les entiers** (+10 points)
+  et **évite les décimaux** (une vie perdue). Les nombres tombent de plus en plus vite (vitesse maximale vers 3 minutes).
+- **Calculs encadrés en jaune** (environ un nombre sur huit) : 0,5 + 0,5 ; 4 × 2,5 ; 1,6 − 0,6… Résultat entier attrapé : +30 ;
+  résultat décimal attrapé : une vie perdue. Ils tombent plus lentement, pour laisser le temps de calculer.
+- **Combo** : 5 bonnes prises d'affilée rapportent +20 points (jauge à côté du score). Le combo repart à zéro quand on perd une vie.
 - Toutes les 40 secondes environ, un **bonus** de 10 secondes change la règle : « attrape les fractions dont le quotient
-  est un entier » ou « attrape les multiples de 5 » (+30 points ; une mauvaise prise coûte une vie).
+  est un entier » ou « attrape les multiples de 5 » (+30 points ; une mauvaise prise coûte une vie). La nouvelle règle
+  s'affiche en grand avec un compte à rebours « 3, 2, 1 », et les nombres tombent plus lentement pendant le bonus.
 - **Mode expert**, débloqué à 300 points en mode normal : la règle change toutes les 15 secondes
-  (nombres premiers, multiples de 3, de 5 ou de 10).
+  (nombres premiers, multiples de 3, de 5 ou de 10), avec la même annonce en grand.
 - **Classement** : chaque élève voit son record, le podium de sa classe et le podium de tout le collège (les 3 meilleurs),
   séparément pour le mode normal et le mode expert, sur toute l'année.
 - Les scores impossibles (trop élevés pour la durée de la partie) sont ignorés automatiquement.
@@ -172,7 +176,7 @@ Il suffit d'y copier les fichiers.
 - Lien **Espace professeur** en bas du portail, ou adresse du site suivie de `#prof`, puis votre code.
 - Onglet **Par élève** : nombre de séries, taux de réussite, meilleur score par exerciseur et par niveau, dernière activité.
 - Onglet **Toutes les séries** : la liste chronologique.
-- Onglet **Jeu** : les parties de Pluie de nombres (élève, classe, mode, score, durée), avec un bouton **Supprimer**
+- Onglet **Jeu** : les parties de « Au tableau ! » (élève, classe, mode, score, durée), avec un bouton **Supprimer**
   pour retirer un score suspect ou un prénom déplacé du classement.
 - Filtres par classe, exerciseur, période et prénom. Le bouton **Actualiser** recharge les derniers résultats.
 - Le tableur Google contient toutes les données brutes, avec le détail question par question, pour vos tris ou exports.

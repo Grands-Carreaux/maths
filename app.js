@@ -804,7 +804,7 @@
      JEU « PLUIE DE NOMBRES »
      Une partie est gagnée à chaque série terminée (3 en réserve au maximum).
      ===================================================================== */
-  const JEU = { nom: 'Pluie de nombres', viesBase: 3, maxBonus: 3, seuilExpert: 300 };
+  const JEU = { nom: 'Au tableau !', viesBase: 3, maxBonus: 3, seuilExpert: 300 };
   const idEleve = () => { const m = getMoi(); return m ? (m.classe + '|' + m.prenom).toLowerCase() : 'anonyme'; };
   // Vies bonus : +1 par série terminée avec 8/10 ou plus, 3 au maximum, toutes utilisées à la partie suivante.
   const viesBonus = () => store.get('viesbonus:' + idEleve(), 0);
@@ -814,8 +814,8 @@
   const expertDebloque = () => record('normal') >= JEU.seuilExpert;
   const pastilles = (n) => '<span class="pastilles" aria-label="' + n + (n > 1 ? ' vies bonus' : ' vie bonus') + ' sur ' + JEU.maxBonus + '">' +
     [0, 1, 2].map((i) => '<i class="' + (i < n ? 'on' : '') + '"></i>').join('') + '</span>';
-  const ICONE_JEU = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="34" width="38" height="9" rx="3" class="ij-cahier"/><line x1="11" y1="34" x2="11" y2="43" class="ij-marge"/>' +
-    '<text x="9" y="16" class="ij-n">7</text><text x="26" y="25" class="ij-n ij-d">2,5</text><text x="30" y="10" class="ij-n">12</text></svg>';
+  const ICONE_JEU = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="1" y="1" width="46" height="46" rx="8" fill="#26453a"/><rect x="1" y="40" width="46" height="7" fill="#8a5a33"/>' +
+    '<text x="12" y="18" class="ij-n">7</text><text x="29" y="27" class="ij-n ij-d">2,5</text><rect x="15" y="30" width="18" height="9" rx="3" fill="#f4f1e4"/><rect x="15" y="30" width="5" height="9" rx="2" fill="#f2c94c"/></svg>';
 
   function carteJeu() {
     const b = viesBonus();
@@ -829,7 +829,8 @@
     const b = viesBonus(), exp = expertDebloque();
     app.innerHTML = '<div class="wrap jeu-page"><a class="btn btn-ghost back" href="#">← Retour aux exerciseurs</a>' +
       '<div class="thead"><span class="eyebrow">Jeu</span><h1>' + JEU.nom + '</h1>' +
-      '<p>Déplace ton cahier avec les flèches ◀ ▶ (ou celles du clavier). <strong>Attrape les nombres entiers</strong>, évite les nombres décimaux. La pluie accélère, et tu as 3 vies, plus tes vies bonus. De temps en temps, un <strong>bonus</strong> change la règle pendant quelques secondes : lis bien le bandeau !</p></div>' +
+      '<p>Déplace ta craie avec les flèches ◀ ▶ (ou celles du clavier). <strong>Attrape les nombres entiers</strong>, évite les nombres décimaux. Les nombres tombent de plus en plus vite, et tu as 3 vies, plus tes vies bonus.</p>' +
+      '<p>Les <strong>calculs encadrés en jaune</strong> rapportent +30 si leur résultat est un entier. <strong>5 bonnes prises d’affilée</strong> : combo, +20. De temps en temps, un <strong>bonus</strong> change la règle : elle s’affiche en grand avant de commencer.</p></div>' +
       '<div class="card jeu-panneau"><div class="jeu-ligne"><span>Vies pour ta prochaine partie : <strong>' + txtVies(b) + '</strong></span>' + pastilles(b) + '</div>' +
       '<div class="jeu-ligne"><span>Ton record</span><strong>' + record('normal') + ' pts</strong></div>' +
       (exp ? '<div class="jeu-ligne"><span>Ton record en mode expert</span><strong>' + record('expert') + ' pts</strong></div>' : '') +
@@ -894,33 +895,67 @@
       gen() { let n; const veut = Math.random() < 0.45; do { n = rint(2, 120); } while ((n % 10 === 0) !== veut); return { txt: String(n), bon: veut }; } }
   };
 
+  // Tuile « calcul » : petit calcul avec des décimaux, résultat entier une fois sur deux.
+  function genCalcul() {
+    const entier = Math.random() < 0.5, op = pick3(['+', '−', '×']);
+    const dec = (x) => ecrire(Math.round(x * 100) / 100);
+    if (op === '+') {
+      const d1 = rint(1, 9), a = rint(0, 6) + d1 / 10;
+      let d2 = 10 - d1; if (!entier) { do { d2 = rint(1, 9); } while (d2 === 10 - d1); }
+      const b = rint(0, 4) + d2 / 10;
+      return { calc: dec(a) + ' + ' + dec(b), bon: (d1 + d2) % 10 === 0 };
+    }
+    if (op === '−') {
+      const d1 = rint(1, 9), a = rint(2, 9) + d1 / 10;
+      let d2 = d1; if (!entier) { do { d2 = rint(1, 9); } while (d2 === d1); }
+      const b = rint(0, Math.floor(a) - 1) + d2 / 10;
+      return { calc: dec(a) + ' − ' + dec(b), bon: d1 === d2 };
+    }
+    const paires = entier ? [[0.5, 2], [0.5, 4], [2.5, 2], [2.5, 4], [1.5, 2], [1.25, 4], [0.25, 4], [3.5, 2], [0.2, 5], [0.4, 5], [1.2, 5], [0.6, 5], [4.5, 2], [0.75, 4]]
+      : [[1.2, 2], [0.3, 3], [2.5, 3], [1.5, 3], [0.7, 2], [1.25, 2], [0.4, 3], [0.6, 4], [3.5, 3], [0.25, 3], [1.1, 4]];
+    const [x, k] = paires[rint(0, paires.length - 1)];
+    return { calc: Math.random() < 0.5 ? dec(x) + ' × ' + k : k + ' × ' + dec(x), bon: entier };
+  }
+  const pick3 = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
   function jouer(mode) {
     if (mode === 'expert' && !expertDebloque()) return vueJeu();
     const bonusUtilises = viesBonus();
     setViesBonus(0);
+    document.body.classList.add('en-jeu');
     app.innerHTML = '<div class="jeu-play">' +
-      '<div class="bar"><button class="iconbtn" id="j-quit" aria-label="Arrêter la partie">✕</button><span class="vies" id="vies"></span><span class="jeu-score" id="jscore">0</span></div>' +
+      '<div class="bar"><button class="iconbtn" id="j-quit" aria-label="Arrêter la partie">✕</button><span class="vies" id="vies"></span>' +
+      '<span class="combo" id="combo" aria-label="Combo"><i></i><i></i><i></i><i></i><i></i></span><span class="jeu-score" id="jscore">0</span></div>' +
       '<div class="jeu-bandeau" id="bandeau"><span id="bandeau-txt"></span><i id="bandeau-temps"></i></div>' +
       '<div class="jeu-cadre" id="cadre"><canvas id="cv"></canvas></div>' +
       '<div class="jeu-ctrl"><button class="key" id="j-g" aria-label="Aller à gauche">◀</button><button class="key" id="j-d" aria-label="Aller à droite">▶</button></div></div>';
     const cv = app.querySelector('#cv'), cx = cv.getContext('2d'), cadre = app.querySelector('#cadre');
-    const css = getComputedStyle(document.documentElement), coul = (v) => css.getPropertyValue(v).trim() || '#000';
-    const COUL = { papier: coul('--surface'), ligne: coul('--line-strong'), encre: coul('--ink'), bleu: coul('--blue'), marge: coul('--margin'), ok: coul('--ok'), ko: coul('--ko'), bord: coul('--border') };
-    let W = 0, H = 0, dpr = 1;
+    // Couleurs du tableau (fixes : le tableau reste vert en mode clair comme en mode sombre)
+    const T = { fond: '#26453a', craie: '#f4f1e4', jaune: '#f2c94c', bleu: '#8fd3f4', vert: '#9be38f', rouge: '#ff8a80', bois: '#8a5a33', boisClair: '#a87447', ombre: 'rgba(0,0,0,.25)' };
+    const POLICE = '"Chalkboard SE", "Segoe Print", "Comic Sans MS", "Comic Neue", "Marker Felt", system-ui, sans-serif';
+    let W = 0, H = 0, dpr = 1, poussiere = [];
+    const FORMULES = ['a² + b² = c²', 'π ≈ 3,14', '(x + 3)(x − 3)', 'v = d ÷ t', '2/3 + 1/6', '17 × 3 = 51', '√49 = 7', 'x = −2'];
+    let fondPos = [];
     function taille() {
       dpr = window.devicePixelRatio || 1;
       W = cadre.clientWidth; H = cadre.clientHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
       cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      poussiere = Array.from({ length: Math.round(W * H / 900) }, () => [Math.random() * W, Math.random() * H, Math.random() * 1.2 + 0.3]);
+      fondPos = FORMULES.map((f, i) => [f, 14 + ((i * 97) % Math.max(60, W - 150)), 60 + ((i * 131) % Math.max(80, H - 160)), (i % 3 - 1) * 0.06]);
     }
     taille();
-    const echelle = () => Math.max(0.75, Math.min(1.3, H / 560));
-    const J = { x: W / 2, w: Math.max(72, W * 0.22), h: 26 };
+    const echelle = () => Math.max(0.8, Math.min(1.3, H / 560));
+    const REBORD = 18;
+    const J = { x: W / 2, w: Math.max(84, W * 0.24), h: 36 };
     const viesDepart = JEU.viesBase + bonusUtilises;
-    let items = [], effets = [], t = 0, score = 0, vies = viesDepart, prochain = 0.6, fini = false, raf = 0, dernier = performance.now();
-    let gauche = false, droite = false, cible = null, regle = 'base', finPhase = 0, pause = 0;
-    // Mode normal : bonus de 10 s toutes les 30 s (à partir de 20 s). Mode expert : règle changée toutes les 15 s.
+    let items = [], effets = [], t = 0, tJeu = 0, score = 0, vies = viesDepart, prochain = 0.6, fini = false, raf = 0, dernier = performance.now();
+    let gauche = false, droite = false, cible = null, regle = 'base', finPhase = 0, combo = 0;
+    // Annonce d'une règle : texte en gros, puis 3, 2, 1. Pendant l'annonce, rien ne tombe et le temps de jeu est arrêté.
+    const DUREE_ANNONCE = 1.6, DUREE_DECOMPTE = 2.1;
+    let annonce = DUREE_ANNONCE + DUREE_DECOMPTE, premiere = true;
+    // Mode normal : bonus de 10 s toutes les 40 s environ (à partir de 25 s). Mode expert : règle changée toutes les 15 s.
     const ordreExpert = ['premiers', 'multiples3', 'multiples5e', 'multiples10'].sort(() => Math.random() - 0.5);
-    let iExpert = 0, prochainBonus = 20, typeBonus = Math.random() < 0.5 ? 'fractions' : 'multiples5';
+    let iExpert = 0, prochainBonus = 25, typeBonus = Math.random() < 0.5 ? 'fractions' : 'multiples5';
     if (mode === 'expert') { regle = ordreExpert[0]; finPhase = 15; }
     const majBandeau = () => {
       const R = REGLES[regle];
@@ -928,82 +963,137 @@
       app.querySelector('#bandeau').className = 'jeu-bandeau' + (R.bonus ? ' bonus' : '') + (mode === 'expert' ? ' expert' : '');
     };
     const majVies = () => { app.querySelector('#vies').innerHTML = Array.from({ length: viesDepart }, (_, i) => '<i class="' + (i < vies ? 'on' : '') + (i >= JEU.viesBase ? ' bonus' : '') + '"></i>').join(''); };
-    majBandeau(); majVies();
-    const changerRegle = (r, duree) => { regle = r; finPhase = t + duree; items = []; pause = 1; majBandeau(); };
+    const majCombo = () => { app.querySelectorAll('#combo i').forEach((el, i) => el.classList.toggle('on', i < combo % 5)); };
+    majBandeau(); majVies(); majCombo();
+    const changerRegle = (r, duree) => { regle = r; finPhase = tJeu + duree; items = []; annonce = DUREE_ANNONCE + DUREE_DECOMPTE; majBandeau(); };
+    const enBonus = () => !!REGLES[regle].bonus;
 
     function apparaitre() {
-      const g = REGLES[regle].gen();
-      cx.font = '700 ' + Math.round(22 * echelle()) + 'px system-ui, sans-serif';
-      const lw = g.frac ? Math.max(cx.measureText(String(g.frac[0])).width, cx.measureText(String(g.frac[1])).width) : cx.measureText(g.txt).width;
-      const w = lw + 24 * echelle(), h = (g.frac ? 62 : 40) * echelle();
+      let g = REGLES[regle].gen(), pts = REGLES[regle].pts, calcul = false;
+      if (regle === 'base' && mode === 'normal' && Math.random() < 1 / 8) { g = genCalcul(); pts = 30; calcul = true; }
+      const taillePolice = Math.round((calcul ? 22 : 30) * echelle());
+      cx.font = '700 ' + taillePolice + 'px ' + POLICE;
+      const txt = g.calc || g.txt;
+      const lw = g.frac ? Math.max(cx.measureText(String(g.frac[0])).width, cx.measureText(String(g.frac[1])).width) : cx.measureText(txt).width;
+      const w = lw + (calcul ? 28 : 16) * echelle(), h = (g.frac ? 70 : calcul ? 46 : 40) * echelle();
       let x, essais = 0;
-      do { x = w / 2 + 6 + Math.random() * (W - w - 12); essais++; } while (essais < 8 && items.some((it) => it.y < h * 1.5 && Math.abs(it.x - x) < (it.w + w) / 2 + 6));
-      items.push(Object.assign(g, { x, y: -h / 2, w, h, pts: REGLES[regle].pts }));
+      do { x = w / 2 + 6 + Math.random() * Math.max(1, W - w - 12); essais++; } while (essais < 8 && items.some((it) => it.y < h * 1.5 && Math.abs(it.x - x) < (it.w + w) / 2 + 6));
+      items.push(Object.assign(g, { txt, x, y: -h / 2, w, h, pts, calcul, taillePolice, angle: (Math.random() - 0.5) * 0.12 }));
     }
-    function tuile(it) {
-      const x = it.x - it.w / 2, y = it.y - it.h / 2, r = 10 * echelle();
-      cx.fillStyle = COUL.papier; cx.strokeStyle = COUL.bleu; cx.lineWidth = 2;
-      cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, it.w, it.h, r) : cx.rect(x, y, it.w, it.h); cx.fill(); cx.stroke();
-      cx.fillStyle = COUL.encre; cx.textAlign = 'center'; cx.textBaseline = 'middle';
-      cx.font = '700 ' + Math.round(22 * echelle()) + 'px system-ui, sans-serif';
-      if (it.frac) {
-        cx.fillText(String(it.frac[0]), it.x, it.y - it.h * 0.22);
-        cx.fillRect(it.x - it.w / 2 + 8, it.y - 1, it.w - 16, 2.5);
-        cx.fillText(String(it.frac[1]), it.x, it.y + it.h * 0.24);
-      } else cx.fillText(it.txt, it.x, it.y + 1);
+    function ecrireCraie(texte, x, y, taillePx, couleur) {
+      cx.font = '700 ' + taillePx + 'px ' + POLICE; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillStyle = couleur; cx.globalAlpha = 0.95; cx.fillText(texte, x, y);
+      cx.globalAlpha = 0.25; cx.fillText(texte, x + 0.8, y + 0.6); cx.globalAlpha = 1;
     }
+    function nombre(it) {
+      cx.save(); cx.translate(it.x, it.y); cx.rotate(it.angle);
+      if (it.calcul) {
+        cx.strokeStyle = T.jaune; cx.lineWidth = 2.5; cx.setLineDash([7, 4]);
+        cx.beginPath(); cx.roundRect ? cx.roundRect(-it.w / 2, -it.h / 2, it.w, it.h, 10) : cx.rect(-it.w / 2, -it.h / 2, it.w, it.h); cx.stroke(); cx.setLineDash([]);
+        ecrireCraie(it.txt, 0, 1, it.taillePolice, T.jaune);
+      } else if (it.frac) {
+        ecrireCraie(String(it.frac[0]), 0, -it.h * 0.24, it.taillePolice, T.craie);
+        cx.fillStyle = T.craie; cx.fillRect(-it.w / 2 + 6, -1.5, it.w - 12, 3);
+        ecrireCraie(String(it.frac[1]), 0, it.h * 0.26, it.taillePolice, T.craie);
+      } else ecrireCraie(it.txt, 0, 1, it.taillePolice, T.craie);
+      cx.restore();
+    }
+    function personnage() {
+      const y = H - REBORD - J.h, x = J.x - J.w / 2, r = 12;
+      cx.fillStyle = T.ombre; cx.beginPath(); cx.ellipse(J.x, H - REBORD + 2, J.w / 2, 5, 0, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = T.craie; cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, J.w, J.h, r) : cx.rect(x, y, J.w, J.h); cx.fill();
+      cx.fillStyle = T.jaune; cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, J.w * 0.22, J.h, [r, 4, 4, r]) : cx.rect(x, y, J.w * 0.22, J.h); cx.fill();
+      // visage : il regarde dans la direction du mouvement
+      const dir = gauche ? -1 : droite ? 1 : 0, ex = J.x + J.w * 0.12 + dir * 3, ey = y + J.h * 0.42;
+      cx.fillStyle = T.fond; cx.beginPath(); cx.arc(ex - 9, ey, 4.5, 0, 7); cx.arc(ex + 9, ey, 4.5, 0, 7); cx.fill();
+      cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(ex - 8 + dir, ey - 1.5, 1.6, 0, 7); cx.arc(ex + 10 + dir, ey - 1.5, 1.6, 0, 7); cx.fill();
+      cx.strokeStyle = T.fond; cx.lineWidth = 2.5; cx.lineCap = 'round'; cx.beginPath();
+      if (effetVisage > 0 && visage === 'triste') cx.arc(ex, ey + 13, 6, Math.PI * 1.15, Math.PI * 1.85); else cx.arc(ex, ey + 4, 7, Math.PI * 0.2, Math.PI * 0.8);
+      cx.stroke();
+    }
+    let visage = 'content', effetVisage = 0;
     function dessiner() {
-      cx.clearRect(0, 0, W, H);
-      cx.fillStyle = COUL.papier; cx.fillRect(0, 0, W, H);
-      cx.strokeStyle = COUL.ligne; cx.lineWidth = 1; cx.globalAlpha = 0.5;
-      for (let y = 32; y < H; y += 32) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(W, y); cx.stroke(); }
-      for (let x = 32; x < W; x += 32) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, H); cx.stroke(); }
+      cx.fillStyle = T.fond; cx.fillRect(0, 0, W, H);
+      cx.fillStyle = '#ffffff';
+      poussiere.forEach(([x, y, r]) => { cx.globalAlpha = 0.08; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fill(); });
       cx.globalAlpha = 1;
-      items.forEach(tuile);
-      // le cahier du joueur
-      const py = H - J.h - 16, px = J.x - J.w / 2;
-      cx.fillStyle = COUL.bleu; cx.beginPath(); cx.roundRect ? cx.roundRect(px, py, J.w, J.h, 6) : cx.rect(px, py, J.w, J.h); cx.fill();
-      cx.strokeStyle = COUL.marge; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(px + 12, py); cx.lineTo(px + 12, py + J.h); cx.stroke();
-      effets.forEach((e) => { cx.globalAlpha = Math.max(0, e.v); cx.fillStyle = e.c; cx.font = '800 ' + Math.round(20 * echelle()) + 'px system-ui, sans-serif'; cx.textAlign = 'center'; cx.fillText(e.txt, e.x, e.y); cx.globalAlpha = 1; });
-      if (pause > 0) { cx.fillStyle = COUL.encre; cx.globalAlpha = 0.8; cx.font = '800 ' + Math.round(26 * echelle()) + 'px system-ui, sans-serif'; cx.textAlign = 'center'; cx.fillText(t < 1.2 ? 'C’est parti !' : 'Nouvelle règle !', W / 2, H / 2); cx.globalAlpha = 1; }
+      fondPos.forEach(([f, x, y, a]) => { cx.save(); cx.translate(x, y); cx.rotate(a); cx.globalAlpha = 0.13; cx.fillStyle = T.craie; cx.font = '600 ' + Math.round(16 * echelle()) + 'px ' + POLICE; cx.textAlign = 'left'; cx.fillText(f, 0, 0); cx.restore(); });
+      cx.globalAlpha = 1;
+      items.forEach(nombre);
+      // rebord en bois, avec un morceau de craie et une éponge
+      cx.fillStyle = T.bois; cx.fillRect(0, H - REBORD, W, REBORD);
+      cx.fillStyle = T.boisClair; cx.fillRect(0, H - REBORD, W, 3);
+      personnage();
+      effets.forEach((e) => {
+        cx.globalAlpha = Math.max(0, Math.min(1, e.v)); const k = e.gros ? 1 + (1 - e.v) * 0.3 : 1;
+        ecrireCraie(e.txt, e.x, e.y, Math.round((e.gros ? 40 : 22) * echelle() * k), e.c); cx.globalAlpha = 1;
+      });
+      if (annonce > 0) {
+        cx.fillStyle = 'rgba(15, 30, 24, .78)'; cx.fillRect(0, 0, W, H);
+        const R = REGLES[regle], titre = premiere ? (mode === 'expert' ? 'Mode expert' : 'C’est parti !') : R.bonus ? 'BONUS !' : mode === 'expert' ? 'Nouvelle règle !' : 'Retour à la règle normale';
+        ecrireCraie(titre, W / 2, H * 0.24, Math.round(28 * echelle()), R.bonus ? T.jaune : T.bleu);
+        // règle en gros, sur plusieurs lignes si besoin
+        const regleTxt = R.bandeau.replace(/^BONUS : /, ''), tp = Math.round(30 * echelle());
+        cx.font = '700 ' + tp + 'px ' + POLICE;
+        const mots = regleTxt.split(' '), lignes = []; let l = '';
+        mots.forEach((m) => { const essai = l ? l + ' ' + m : m; if (cx.measureText(essai).width > W * 0.86 && l) { lignes.push(l); l = m; } else l = essai; });
+        lignes.push(l);
+        lignes.forEach((li, i) => ecrireCraie(li, W / 2, H * 0.38 + i * tp * 1.25, tp, T.craie));
+        ecrireCraie('+' + R.pts + ' par bonne prise', W / 2, H * 0.38 + lignes.length * tp * 1.25 + 10, Math.round(18 * echelle()), T.vert);
+        if (annonce <= DUREE_DECOMPTE) {
+          const n = Math.ceil(annonce / (DUREE_DECOMPTE / 3));
+          ecrireCraie(String(n), W / 2, H * 0.74, Math.round(64 * echelle()), T.jaune);
+        }
+      }
     }
     function etape(now) {
       if (fini) return;
       const dt = Math.min(0.05, (now - dernier) / 1000); dernier = now; t += dt;
-      if (pause > 0) pause -= dt;
-      // phases
-      if (mode === 'expert' && t >= finPhase) { iExpert = (iExpert + 1) % ordreExpert.length; changerRegle(ordreExpert[iExpert], 15); }
-      if (mode === 'normal') {
-        if (regle === 'base' && t >= prochainBonus) { changerRegle(typeBonus, 10); typeBonus = typeBonus === 'fractions' ? 'multiples5' : 'fractions'; prochainBonus = t + 40; }
-        else if (regle !== 'base' && t >= finPhase) changerRegle('base', 0);
+      if (effetVisage > 0) effetVisage -= dt;
+      if (annonce > 0) annonce -= dt; else { tJeu += dt; premiere = false; }
+      // phases (le temps des annonces n'est pas compté)
+      if (annonce <= 0) {
+        if (mode === 'expert' && tJeu >= finPhase) { iExpert = (iExpert + 1) % ordreExpert.length; changerRegle(ordreExpert[iExpert], 15); }
+        if (mode === 'normal') {
+          if (regle === 'base' && tJeu >= prochainBonus) { changerRegle(typeBonus, 10); typeBonus = typeBonus === 'fractions' ? 'multiples5' : 'fractions'; prochainBonus = tJeu + 10 + 30; }
+          else if (regle !== 'base' && tJeu >= finPhase) changerRegle('base', 0);
+        }
       }
-      const reste = REGLES[regle].bonus || mode === 'expert' ? Math.max(0, finPhase - t) / (mode === 'expert' ? 15 : 10) : 0;
+      const reste = enBonus() || mode === 'expert' ? Math.max(0, finPhase - tJeu) / (mode === 'expert' ? 15 : 10) : 0;
       app.querySelector('#bandeau-temps').style.width = (reste * 100) + '%';
-      // déplacement du joueur
+      // déplacement du personnage
       const vJ = W * 1.15;
       if (gauche) J.x -= vJ * dt; if (droite) J.x += vJ * dt;
       if (cible != null && !gauche && !droite) { const d = cible - J.x; J.x += Math.sign(d) * Math.min(Math.abs(d), vJ * dt); }
       J.x = Math.max(J.w / 2, Math.min(W - J.w / 2, J.x));
-      // pluie : vitesse et fréquence augmentent avec le temps
-      const vitesse = Math.min(520, 120 + 4.5 * t) * echelle();
-      if (pause <= 0) { prochain -= dt; if (prochain <= 0) { apparaitre(); prochain = Math.max(0.38, 1.15 - t * 0.012); } }
-      const py = H - J.h - 16;
-      items.forEach((it) => { it.y += vitesse * dt; });
+      // pluie : accélération douce (vitesse maximale vers 3 minutes), plus lente pendant les bonus
+      const lent = enBonus() ? 0.6 : 1;
+      const vitesse = Math.min(400, 110 + 1.6 * tJeu) * echelle() * lent;
+      if (annonce <= 0) { prochain -= dt; if (prochain <= 0) { apparaitre(); prochain = Math.max(0.5, 1.2 - tJeu * 0.004) / lent; } }
+      const py = H - REBORD - J.h;
+      items.forEach((it) => { it.y += vitesse * (it.calcul ? 0.7 : 1) * dt; });
       items = items.filter((it) => {
-        if (it.y + it.h / 2 >= py && it.y - it.h / 2 <= py + J.h && Math.abs(it.x - J.x) < (J.w + it.w) / 2 * 0.92) {
-          if (it.bon) { score += it.pts; effets.push({ txt: '+' + it.pts, x: it.x, y: py - 10, c: COUL.ok, v: 1 }); }
-          else { vies--; majVies(); effets.push({ txt: 'Raté !', x: it.x, y: py - 10, c: COUL.ko, v: 1 }); cadre.classList.remove('choc'); void cadre.offsetWidth; cadre.classList.add('choc'); }
-          app.querySelector('#jscore').textContent = score;
+        if (it.y + it.h / 2 >= py && it.y - it.h / 2 <= py + J.h && Math.abs(it.x - J.x) < (J.w + it.w) / 2 * 0.9) {
+          if (it.bon) {
+            score += it.pts; combo++;
+            effets.push({ txt: '+' + it.pts, x: it.x, y: py - 12, c: T.vert, v: 1 });
+            if (combo % 5 === 0) { score += 20; effets.push({ txt: 'Combo ! +20', x: W / 2, y: H * 0.42, c: T.jaune, v: 1.4, gros: true }); }
+          } else {
+            vies--; combo = 0; majVies(); visage = 'triste'; effetVisage = 0.8;
+            effets.push({ txt: it.calcul ? 'Pas entier !' : 'Raté !', x: it.x, y: py - 12, c: T.rouge, v: 1 });
+            cadre.classList.remove('choc'); void cadre.offsetWidth; cadre.classList.add('choc');
+          }
+          majCombo(); app.querySelector('#jscore').textContent = score;
           return false;
         }
         return it.y - it.h / 2 < H;
       });
-      effets.forEach((e) => { e.y -= 40 * dt; e.v -= dt * 1.2; }); effets = effets.filter((e) => e.v > 0);
+      effets.forEach((e) => { e.y -= (e.gros ? 15 : 40) * dt; e.v -= dt * 1.1; }); effets = effets.filter((e) => e.v > 0);
       dessiner();
       if (vies <= 0) return finJeu();
       raf = requestAnimationFrame(etape);
     }
-    // commandes : clavier, flèches tactiles (maintenir), ou glisser le doigt sur la zone de jeu
+    // commandes : flèches du clavier, flèches tactiles (maintenir), ou glisser le doigt sur le tableau
     const kd = (e) => { if (e.key === 'ArrowLeft') { gauche = true; e.preventDefault(); } if (e.key === 'ArrowRight') { droite = true; e.preventDefault(); } };
     const ku = (e) => { if (e.key === 'ArrowLeft') gauche = false; if (e.key === 'ArrowRight') droite = false; };
     document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
@@ -1016,11 +1106,13 @@
     cv.addEventListener('pointerdown', (e) => { cible = e.offsetX; cv.setPointerCapture(e.pointerId); });
     cv.addEventListener('pointermove', (e) => { if (cible != null) cible = e.offsetX; });
     ['pointerup', 'pointercancel'].forEach((ev) => cv.addEventListener(ev, () => { cible = null; }));
-    window.addEventListener('resize', taille);
-    const arreter = () => { fini = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); window.removeEventListener('resize', taille); window.__jeuStop = null; };
+    // Le tableau change de taille (bandeau sur deux lignes, rotation de l'écran) : on redimensionne le dessin
+    const obs = window.ResizeObserver ? new ResizeObserver(() => { if (cadre.clientHeight !== H || cadre.clientWidth !== W) taille(); }) : null;
+    if (obs) obs.observe(cadre); else window.addEventListener('resize', taille);
+    const arreter = () => { fini = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); if (obs) obs.disconnect(); else window.removeEventListener('resize', taille); document.body.classList.remove('en-jeu'); window.__jeuStop = null; };
     window.__jeuStop = () => { if (!fini) { arreter(); enregistrer(); } };
     app.querySelector('#j-quit').onclick = () => finJeu();
-    window.__gc.jeu = { etat: () => ({ t, score, vies, regle, items: items.map((i) => ({ bon: i.bon, x: i.x, y: i.y })), J: { x: J.x, w: J.w } }) };
+    window.__gc.jeu = { etat: () => ({ t, tJeu, score, vies, regle, combo, annonce, items: items.map((i) => ({ bon: i.bon, x: i.x, y: i.y, calcul: i.calcul, txt: i.txt })), J: { x: J.x, w: J.w } }) };
 
     function enregistrer() {
       const duree = Math.round(t), moi = getMoi(), cleR = 'record:' + mode + ':' + idEleve(), ancien = store.get(cleR, 0);
