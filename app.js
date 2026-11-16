@@ -721,16 +721,20 @@
     maj();
   }
 
+  // Tri (clic sur un titre de colonne) et sélection (cases à cocher) propres à chaque onglet
+  const TRI = { eleves: { col: 'classe', sens: 1 }, series: { col: 'date', sens: -1 }, jeu: { col: 'date', sens: -1 } };
+  const SEL = { eleves: new Set(), series: new Set(), jeu: new Set() };
+  let dernierCoche = null;
+  const MAX_LIGNES = 500;
+
   function tableaux(el) {
-    const now = Date.now();
-    let L = donneesProf.filter((l) =>
-      (!F.classe || l.classe === F.classe) && (!F.theme || l.themeId === F.theme) &&
-      (!F.q || l.prenom.toLowerCase().includes(F.q)) &&
-      (!F.periode || (F.periode === '1' ? new Date(l.t).toDateString() === new Date().toDateString() : now - l.t <= F.periode * 864e5)));
-    L.sort((a, b) => b.t - a.t);
+    const now = Date.now(), o = F.onglet;
+    const dansPeriode = (l) => !F.periode || (F.periode === '1' ? new Date(l.t).toDateString() === new Date().toDateString() : now - l.t <= F.periode * 864e5);
+    const L = donneesProf.filter((l) => (!F.classe || l.classe === F.classe) && (!F.theme || l.themeId === F.theme) && (!F.q || l.prenom.toLowerCase().includes(F.q)) && dansPeriode(l));
+    const LJ = donneesJeu.filter((l) => (!F.classe || l.classe === F.classe) && (!F.q || l.prenom.toLowerCase().includes(F.q)) && dansPeriode(l));
     const eleves = new Map();
-    L.forEach((l) => {
-      if (!eleves.has(l.cleEleve)) eleves.set(l.cleEleve, { prenom: l.prenom, classe: l.classe, n: 0, s: 0, tot: 0, der: l.t, best: new Map() });
+    L.slice().sort((a, b) => b.t - a.t).forEach((l) => {
+      if (!eleves.has(l.cleEleve)) eleves.set(l.cleEleve, { cle: l.cleEleve, prenom: l.prenom, classe: l.classe, n: 0, s: 0, tot: 0, der: l.t, best: new Map() });
       const e = eleves.get(l.cleEleve);
       e.n++; e.s += l.score; e.tot += l.total;
       const k = l.themeId + ':' + l.niveau, b = e.best.get(k);
@@ -740,75 +744,122 @@
     const meter = (p) => { const c = p >= 80 ? 'var(--ok)' : p >= 50 ? 'var(--mid)' : 'var(--ko)'; return '<span class="meter"><i style="width:' + p + '%;background:' + c + '"></i></span>' + p + ' %'; };
     const dt = (t) => new Date(t).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     const nomT = (id) => (THEMES.find((t) => t.id === id) || {}).titre || id;
+    const etoiles = (l) => { const th = THEMES.find((t) => t.id === l.themeId); return th && th.parties ? esc((th.niveaux[l.niveau - 1] || {}).court || '') : '★'.repeat(l.niveau); };
 
-    const garderPeriode = (l) => !F.periode || (F.periode === '1' ? new Date(l.t).toDateString() === new Date().toDateString() : now - l.t <= F.periode * 864e5);
-    const LJ = donneesJeu.filter((l) => (!F.classe || l.classe === F.classe) && (!F.q || l.prenom.toLowerCase().includes(F.q)) && garderPeriode(l)).sort((a, b) => b.t - a.t);
+    // Colonnes de chaque onglet : titre, valeur de tri, contenu affiché
+    const COLS = {
+      eleves: [
+        { id: 'prenom', titre: 'Élève', v: (e) => e.prenom, h: (e) => '<strong>' + esc(e.prenom) + '</strong>' },
+        { id: 'classe', titre: 'Classe', v: (e) => e.classe, h: (e) => esc(e.classe) },
+        { id: 'n', titre: 'Séries', v: (e) => e.n, h: (e) => e.n, num: true },
+        { id: 'pct', titre: 'Réussite', v: (e) => e.s / e.tot, h: (e) => meter(Math.round(e.s / e.tot * 100)), num: true },
+        { id: 'best', titre: 'Meilleurs scores', h: (e) => '<div class="cell-pills">' + [...e.best.values()].sort((a, b) => a.themeId.localeCompare(b.themeId) || a.niveau - b.niveau).map((b) => '<span class="pill ' + tone(b.score, b.total) + '">' + esc(nomT(b.themeId)) + ' ' + etoiles(b) + ' ' + b.score + '/' + b.total + '</span>').join('') + '</div>' },
+        { id: 'date', titre: 'Dernière activité', v: (e) => e.der, h: (e) => dt(e.der), num: true }
+      ],
+      series: [
+        { id: 'date', titre: 'Date', v: (l) => l.t, h: (l) => dt(l.t), num: true },
+        { id: 'prenom', titre: 'Élève', v: (l) => l.prenom, h: (l) => '<strong>' + esc(l.prenom) + '</strong>' },
+        { id: 'classe', titre: 'Classe', v: (l) => l.classe, h: (l) => esc(l.classe) },
+        { id: 'theme', titre: 'Exerciseur', v: (l) => nomT(l.themeId), h: (l) => esc(nomT(l.themeId)) },
+        { id: 'niveau', titre: 'Niveau', v: (l) => l.niveau, h: etoiles },
+        { id: 'score', titre: 'Score', v: (l) => l.score / l.total, h: (l) => '<span class="pill ' + tone(l.score, l.total) + '">' + l.score + '/' + l.total + '</span>' },
+        { id: 'duree', titre: 'Durée', v: (l) => l.duree, h: (l) => fmtDuree(l.duree), num: true }
+      ],
+      jeu: [
+        { id: 'date', titre: 'Date', v: (l) => l.t, h: (l) => dt(l.t), num: true },
+        { id: 'prenom', titre: 'Élève', v: (l) => l.prenom, h: (l) => '<strong>' + esc(l.prenom) + '</strong>' },
+        { id: 'classe', titre: 'Classe', v: (l) => l.classe, h: (l) => esc(l.classe) },
+        { id: 'mode', titre: 'Mode', v: (l) => l.mode, h: (l) => (l.mode === 'expert' ? 'Expert' : 'Normal') },
+        { id: 'score', titre: 'Meilleur score', v: (l) => l.score, h: (l) => '<strong>' + l.score + '</strong>', num: true },
+        { id: 'duree', titre: 'Durée', v: (l) => l.duree, h: (l) => fmtDuree(l.duree), num: true }
+      ]
+    };
+    const donnees = o === 'eleves' ? [...eleves.values()] : o === 'series' ? L : LJ;
+    const cle = (r) => (o === 'eleves' ? r.cle : r.id);
+    const cols = COLS[o], tri = TRI[o], colTri = cols.find((c) => c.id === tri.col) || cols[0];
+    const cmp = (a, b) => { const x = colTri.v(a), y = colTri.v(b); const r = typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'fr', { numeric: true }); return r * tri.sens || (b.t || b.der || 0) - (a.t || a.der || 0); };
+    const lignes = donnees.slice().sort(cmp);
+    // la sélection ne garde que des lignes encore présentes avec les filtres actuels
+    const presentes = new Set(lignes.map(cle));
+    [...SEL[o]].forEach((k) => { if (!presentes.has(k)) SEL[o].delete(k); });
+    const sel = SEL[o], toutes = lignes.length && lignes.every((r) => sel.has(cle(r)));
+    const affichees = lignes.slice(0, MAX_LIGNES);
+    const quoi = { eleves: ['élève', 'élèves'], series: ['série', 'séries'], jeu: ['score', 'scores'] }[o];
+
     let corps;
-    if (F.onglet === 'jeu') {
-      corps = !LJ.length ? '<div class="card empty">Aucune partie de ' + JEU.nom + ' pour ces filtres.</div>'
-        : '<div class="card tablewrap"><table><thead><tr><th>Date</th><th>Élève</th><th>Classe</th><th>Mode</th><th>Score</th><th>Durée</th><th></th></tr></thead><tbody>' +
-          LJ.slice(0, 500).map((l) => '<tr><td class="num">' + dt(l.t) + '</td><td><strong>' + esc(l.prenom) + '</strong></td><td>' + esc(l.classe) + '</td><td>' + (l.mode === 'expert' ? 'Expert' : 'Normal') + '</td>' +
-            '<td class="num"><strong>' + l.score + '</strong></td><td class="num">' + fmtDuree(l.duree) + '</td><td class="act"><button class="btn btn-ghost danger" data-del-jeu="' + esc(l.id) + '">Supprimer</button></td></tr>').join('') + '</tbody></table></div>';
-    } else if (!L.length) corps = '<div class="card empty">Aucun résultat pour ces filtres.</div>';
-    else if (F.onglet === 'eleves') {
-      const rows = [...eleves.values()].sort((a, b) => a.classe.localeCompare(b.classe) || a.prenom.localeCompare(b.prenom));
-      corps = '<div class="card tablewrap"><table><thead><tr><th>Élève</th><th>Classe</th><th>Séries</th><th>Réussite</th><th>Meilleurs scores</th><th>Dernière activité</th><th></th></tr></thead><tbody>' +
-        rows.map((e, i) => '<tr><td><strong>' + esc(e.prenom) + '</strong></td><td>' + esc(e.classe) + '</td><td class="num">' + e.n + '</td><td class="num">' + meter(Math.round(e.s / e.tot * 100)) + '</td>' +
-          '<td><div class="cell-pills">' + [...e.best.values()].sort((a, b) => a.themeId.localeCompare(b.themeId) || a.niveau - b.niveau).map((b) => '<span class="pill ' + tone(b.score, b.total) + '" title="' + esc(nomT(b.themeId)) + '">' + esc(nomT(b.themeId)) + ' ' + '★'.repeat(b.niveau) + ' ' + b.score + '/' + b.total + '</span>').join('') + '</div></td>' +
-          '<td class="num">' + dt(e.der) + '</td><td class="act"><button class="btn btn-ghost danger" data-del-eleve="' + i + '">Supprimer</button></td></tr>').join('') + '</tbody></table></div>';
-      el.__eleves = rows;
-    } else {
-      corps = '<div class="card tablewrap"><table><thead><tr><th>Date</th><th>Élève</th><th>Classe</th><th>Exerciseur</th><th>Niveau</th><th>Score</th><th>Durée</th><th></th></tr></thead><tbody>' +
-        L.slice(0, 500).map((l) => '<tr><td class="num">' + dt(l.t) + '</td><td><strong>' + esc(l.prenom) + '</strong></td><td>' + esc(l.classe) + '</td><td>' + esc(nomT(l.themeId)) + '</td><td>' + '★'.repeat(l.niveau) + '</td>' +
-          '<td><span class="pill ' + tone(l.score, l.total) + '">' + l.score + '/' + l.total + '</span></td><td class="num">' + fmtDuree(l.duree) + '</td><td class="act">' + (l.id ? '<button class="btn btn-ghost danger" data-del-id="' + esc(l.id) + '">Supprimer</button>' : '') + '</td></tr>').join('') + '</tbody></table></div>';
-    }
+    if (!lignes.length) corps = '<div class="card empty">' + (o === 'jeu' ? 'Aucune partie de ' + JEU.nom + ' pour ces filtres.' : 'Aucun résultat pour ces filtres.') + '</div>';
+    else corps =
+      '<div class="barre-sel" id="barre-sel">' + (sel.size
+        ? '<strong>' + sel.size + ' ' + quoi[sel.size > 1 ? 1 : 0] + ' sélectionné' + (o === 'series' ? 'e' : '') + (sel.size > 1 ? 's' : '') + '</strong><button class="btn danger-plein" id="sel-suppr">Supprimer la sélection</button><button class="btn btn-ghost" id="sel-aucun">Tout décocher</button>'
+        : '<span class="aide-sel">Coche des lignes pour les supprimer ensemble (Maj + clic pour cocher une plage). La case de l’en-tête coche toutes les lignes des filtres actuels.</span>') + '</div>' +
+      '<div class="card tablewrap"><table><thead><tr><th class="col-sel"><input type="checkbox" id="sel-tout" aria-label="Tout cocher"' + (toutes ? ' checked' : '') + '></th>' +
+      cols.map((c) => (c.v ? '<th><button class="tri' + (c.id === tri.col ? ' actif' : '') + '" data-tri="' + c.id + '">' + c.titre + (c.id === tri.col ? (tri.sens > 0 ? ' ▲' : ' ▼') : '') + '</button></th>' : '<th>' + c.titre + '</th>')).join('') + '<th></th></tr></thead><tbody>' +
+      affichees.map((r, i) => '<tr' + (sel.has(cle(r)) ? ' class="coche"' : '') + '><td class="col-sel"><input type="checkbox" data-i="' + i + '"' + (sel.has(cle(r)) ? ' checked' : '') + ' aria-label="Sélectionner"></td>' +
+        cols.map((c) => '<td' + (c.num ? ' class="num"' : '') + '>' + c.h(r) + '</td>').join('') +
+        '<td class="act"><button class="btn btn-ghost danger" data-un="' + i + '">Supprimer</button></td></tr>').join('') + '</tbody></table></div>' +
+      (lignes.length > MAX_LIGNES ? '<p class="jeu-note">Les ' + MAX_LIGNES + ' premières lignes sont affichées sur ' + lignes.length + '. La case de l’en-tête les coche toutes.</p>' : '');
+
     el.innerHTML = (flash ? '<p class="flash" role="status">' + esc(flash) + '</p>' : '') +
       '<div class="kpis"><div class="card kpi"><b>' + eleves.size + '</b><span>élèves actifs</span></div><div class="card kpi"><b>' + L.length + '</b><span>séries terminées</span></div><div class="card kpi"><b>' + moy + ' %</b><span>réussite moyenne</span></div></div>' +
-      '<div class="tabs"><button class="chip" data-o="eleves" aria-pressed="' + (F.onglet === 'eleves') + '">Par élève</button><button class="chip" data-o="series" aria-pressed="' + (F.onglet === 'series') + '">Toutes les séries</button><button class="chip" data-o="jeu" aria-pressed="' + (F.onglet === 'jeu') + '">Jeu</button></div>' + corps;
-    el.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { flash = ''; F.onglet = b.dataset.o; tableaux(el); });
+      '<div class="tabs"><button class="chip" data-o="eleves" aria-pressed="' + (o === 'eleves') + '">Par élève</button><button class="chip" data-o="series" aria-pressed="' + (o === 'series') + '">Toutes les séries</button><button class="chip" data-o="jeu" aria-pressed="' + (o === 'jeu') + '">Jeu</button></div>' + corps;
     flash = '';
-    // Suppression : confirmation dans la ligne, puis envoi au tableur
-    el.querySelectorAll('[data-del-eleve], [data-del-id], [data-del-jeu]').forEach((b) => b.onclick = () => {
-      const td = b.parentNode;
-      let texte, payload, garder, garderJeu = () => true;
-      if (b.dataset.delEleve != null) {
-        const e = el.__eleves[+b.dataset.delEleve], cleE = (e.classe + '|' + e.prenom).toLowerCase();
-        const nb = donneesProf.filter((l) => l.cleEleve === cleE).length, nj = donneesJeu.filter((l) => l.cleEleve === cleE).length;
-        const jeuTxt = nj ? ' et ' + nj + (nj > 1 ? ' scores' : ' score') + ' du jeu' : '';
-        texte = 'Supprimer ' + e.prenom + ' (' + e.classe + '), ' + (nb > 1 ? 'ses ' + nb + ' séries' : 'sa série') + jeuTxt + ' ?';
-        payload = { prenom: e.prenom, classe: e.classe };
-        garder = (l) => l.cleEleve !== cleE; garderJeu = garder;
-        flash = 'Élève supprimé : ' + e.prenom + ' (' + e.classe + '), ' + nb + (nb > 1 ? ' séries' : ' série') + jeuTxt + ' effacé' + (nb + nj > 1 ? 's' : '') + '.';
-      } else if (b.dataset.delJeu != null) {
-        const id = b.dataset.delJeu, l0 = donneesJeu.find((l) => l.id === id);
-        texte = 'Supprimer ce score de ' + l0.prenom + ' (' + l0.score + ' pts) ?';
-        payload = { id, feuille: 'jeu' };
-        garder = () => true; garderJeu = (l) => l.id !== id;
-        flash = 'Score supprimé (' + l0.prenom + ', ' + l0.score + ' pts).';
+    el.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { F.onglet = b.dataset.o; dernierCoche = null; tableaux(el); });
+    el.querySelectorAll('[data-tri]').forEach((b) => b.onclick = () => {
+      const c = b.dataset.tri; if (tri.col === c) tri.sens = -tri.sens; else { tri.col = c; tri.sens = cols.find((x) => x.id === c).num ? -1 : 1; }
+      tableaux(el);
+    });
+    if (!lignes.length) return;
+    // cases à cocher, avec Maj + clic pour une plage
+    el.querySelectorAll('input[data-i]').forEach((cb) => cb.onclick = (ev) => {
+      const i = +cb.dataset.i, on = cb.checked;
+      const [a, b] = ev.shiftKey && dernierCoche != null ? [Math.min(dernierCoche, i), Math.max(dernierCoche, i)] : [i, i];
+      for (let k = a; k <= b; k++) { const kk = cle(affichees[k]); if (on) sel.add(kk); else sel.delete(kk); }
+      dernierCoche = i; tableaux(el);
+    });
+    el.querySelector('#sel-tout').onclick = (ev) => { if (ev.target.checked) lignes.forEach((r) => sel.add(cle(r))); else sel.clear(); dernierCoche = null; tableaux(el); };
+    const aucun = el.querySelector('#sel-aucun'); if (aucun) aucun.onclick = () => { sel.clear(); tableaux(el); };
+    const suppr = el.querySelector('#sel-suppr'); if (suppr) suppr.onclick = () => confirmer([...sel]);
+    el.querySelectorAll('[data-un]').forEach((b) => b.onclick = () => confirmer([cle(affichees[+b.dataset.un])]));
+
+    // Confirmation, puis suppression dans le tableur
+    function confirmer(cles) {
+      const ens = new Set(cles), n = cles.length;
+      let texte, payload, garder = () => true, garderJeu = () => true;
+      if (o === 'eleves') {
+        const choisis = lignes.filter((e) => ens.has(e.cle)), ns = donneesProf.filter((l) => ens.has(l.cleEleve)).length, nj = donneesJeu.filter((l) => ens.has(l.cleEleve)).length;
+        texte = 'Supprimer ' + (n === 1 ? choisis[0].prenom + ' (' + choisis[0].classe + ')' : n + ' élèves') + ', avec ' + ns + (ns > 1 ? ' séries' : ' série') + (nj ? ' et ' + nj + (nj > 1 ? ' scores' : ' score') + ' du jeu' : '') + ' ?';
+        payload = { eleves: choisis.map((e) => ({ prenom: e.prenom, classe: e.classe })) };
+        garder = (l) => !ens.has(l.cleEleve); garderJeu = garder;
+        flash = (n === 1 ? 'Élève supprimé : ' + choisis[0].prenom + ' (' + choisis[0].classe + ').' : n + ' élèves supprimés.') + ' ' + ns + (ns > 1 ? ' séries' : ' série') + (nj ? ' et ' + nj + (nj > 1 ? ' scores' : ' score') + ' du jeu' : '') + ' effacé' + (ns + nj > 1 ? 's' : '') + '.';
+      } else if (o === 'series') {
+        texte = 'Supprimer ' + (n > 1 ? 'ces ' + n + ' séries' : 'cette série') + ' ?';
+        payload = { ids: cles }; garder = (l) => !ens.has(l.id);
+        flash = n > 1 ? n + ' séries supprimées.' : 'Série supprimée.';
       } else {
-        const id = b.dataset.delId, l0 = donneesProf.find((l) => l.id === id);
-        texte = 'Supprimer cette série de ' + l0.prenom + ' ?';
-        payload = { id };
-        garder = (l) => l.id !== id;
-        flash = 'Série supprimée (' + l0.prenom + ', ' + nomT(l0.themeId) + ').';
+        texte = 'Supprimer ' + (n > 1 ? 'ces ' + n + ' scores' : 'ce score') + ' du jeu ?';
+        payload = { ids: cles, feuille: 'jeu' }; garderJeu = (l) => !ens.has(l.id);
+        flash = n > 1 ? n + ' scores du jeu supprimés.' : 'Score du jeu supprimé.';
       }
       const msg = flash; flash = '';
-      td.innerHTML = '<div class="confirm"><span>' + esc(texte) + '</span><button class="btn danger-plein" data-ok>Oui, supprimer</button><button class="btn btn-ghost" data-non>Annuler</button></div>';
-      td.querySelector('[data-non]').onclick = () => tableaux(el);
-      td.querySelector('[data-ok]').onclick = async (ev) => {
+      const barre = el.querySelector('#barre-sel');
+      barre.classList.add('confirm-zone');
+      barre.innerHTML = '<strong>' + esc(texte) + ' C’est définitif.</strong><button class="btn danger-plein" id="ok-suppr">Oui, supprimer</button><button class="btn btn-ghost" id="non-suppr">Annuler</button>';
+      barre.scrollIntoView({ block: 'nearest' });
+      barre.querySelector('#non-suppr').onclick = () => tableaux(el);
+      barre.querySelector('#ok-suppr').onclick = async (ev) => {
         ev.target.disabled = true; ev.target.textContent = 'Suppression…';
         try {
           const j = await supprimerDistant(payload);
           if (!j.ok) throw new Error(j.erreur === 'cle' ? 'Code professeur refusé.' : (j.erreur || 'erreur'));
-          donneesProf = donneesProf.filter(garder);
-          donneesJeu = donneesJeu.filter(garderJeu);
-          flash = msg;
-          tableaux(el);
+          donneesProf = donneesProf.filter(garder); donneesJeu = donneesJeu.filter(garderJeu);
+          cles.forEach((k) => sel.delete(k));
+          flash = msg; tableaux(el);
         } catch (err) {
-          td.innerHTML = '<span class="msg-err">Suppression impossible : ' + esc(err.message) + '</span>';
+          barre.innerHTML = '<span class="msg-err">Suppression impossible : ' + esc(err.message) + '</span><button class="btn btn-ghost" id="non-suppr">Fermer</button>';
+          barre.querySelector('#non-suppr').onclick = () => tableaux(el);
         }
       };
-    });
+    }
   }
 
   /* =====================================================================

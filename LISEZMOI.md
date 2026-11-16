@@ -167,6 +167,8 @@ Il suffit d'y copier les fichiers.
   (nombres premiers, multiples de 3, de 5 ou de 10), avec la même annonce en grand.
 - **Classement** : chaque élève voit son record, le podium de sa classe et le podium de tout le collège (les 3 meilleurs),
   séparément pour le mode normal et le mode expert, sur toute l'année.
+- **Un seul score par élève** dans le tableur (onglet « Jeu ») : son meilleur score, pour chaque mode. Une nouvelle partie
+  ne remplace la ligne que si elle bat le record ; sinon, rien n'est ajouté. Le tableur reste ainsi léger toute l'année.
 - Les scores impossibles (trop élevés pour la durée de la partie) sont ignorés automatiquement.
 
 ---
@@ -179,15 +181,18 @@ Il suffit d'y copier les fichiers.
 - Onglet **Jeu** : les parties de « Au tableau ! » (élève, classe, mode, score, durée), avec un bouton **Supprimer**
   pour retirer un score suspect ou un prénom déplacé du classement.
 - Filtres par classe, exerciseur, période et prénom. Le bouton **Actualiser** recharge les derniers résultats.
+- **Trier** : cliquez sur un titre de colonne (Date, Élève, Classe, Score…) ; un deuxième clic inverse l'ordre (flèche ▲ ▼).
 - Le tableur Google contient toutes les données brutes, avec le détail question par question, pour vos tris ou exports.
 
-**Supprimer un élève ou une série.** Utile pour un prénom fantaisiste, une faute de frappe ou un essai.
-- Onglet **Par élève** : le bouton **Supprimer** au bout de la ligne efface l'élève, **toutes** ses séries et ses scores du jeu,
-  quelle que soit la période choisie dans les filtres.
-- Onglet **Toutes les séries** : le bouton **Supprimer** efface une seule série.
-- Une confirmation est demandée dans la ligne (« Oui, supprimer » ou « Annuler »). Les lignes sont alors effacées du tableur Google.
-  **La suppression est définitive**, sauf à passer par l'historique des versions de Google Sheets
-  (Fichier > Historique des versions).
+**Supprimer des résultats** (un prénom fantaisiste, une faute de frappe, des essais, ou tout en fin d'année).
+- Le bouton **Supprimer** au bout d'une ligne supprime cette ligne. Dans l'onglet **Par élève**, il supprime l'élève avec
+  **toutes** ses séries et ses scores du jeu.
+- Pour en supprimer **plusieurs d'un coup** : cochez les cases au début des lignes (**Maj + clic** pour cocher toute une plage),
+  puis cliquez sur **Supprimer la sélection**.
+- La case dans l'**en-tête** coche **toutes les lignes des filtres actuels** : par exemple, toute la 4e 3, ou tout,
+  avec la période « Depuis le début ».
+- Une confirmation est toujours demandée. **La suppression est définitive**, sauf à passer par l'historique des versions
+  de Google Sheets (Fichier > Historique des versions).
 - Si l'élève refait une série avec le même prénom sur le même appareil, il réapparaît. Pour corriger durablement un prénom,
   demandez-lui de cliquer sur **Modifier** en haut du portail et de taper son vrai prénom.
 
@@ -288,6 +293,18 @@ Cette mise à jour touche le site **et** le script Google (le jeu enregistre ses
    Effacez tout le code, collez le nouveau `apps-script/Code.gs`, **remettez votre code** à la ligne `CODE_PROF`, enregistrez.
    Puis **Déployer > Gérer les déploiements > ✏️ > Version : Nouvelle version > Déployer**. L'adresse ne change pas.
 4. Testez : une série jusqu'au bout, une partie du jeu, puis l'onglet **Jeu** de la page professeur.
+
+### Mise à jour de novembre (2) : un score de jeu par élève, tri et suppression groupée
+
+Cette mise à jour touche le **site** et le **script Google**.
+1. **GitHub** : déposez `app.js`, `app.css`, `index.html`, `LISEZMOI.md`, puis le nouveau `Code.gs` dans le dossier `apps-script`
+   (copie de rangement, **sans** votre code professeur).
+2. **Script Google** (fenêtre privée, compte **Maths**) : ouvrez le tableur, puis **Extensions > Apps Script**.
+   **Notez votre code professeur** (ligne `CODE_PROF`), puis Ctrl + A, Suppr, et collez le nouveau `apps-script/Code.gs`.
+   Remettez votre code entre les guillemets, **enregistrez**, puis
+   **Déployer > Gérer les déploiements > ✏️ > Version : Nouvelle version > Déployer**.
+3. Ouvrez l'**espace professeur** : les anciennes parties en double de l'onglet « Jeu » sont nettoyées automatiquement
+   (une seule ligne par élève et par mode, la meilleure).
 
 ### Marche à suivre habituelle
 

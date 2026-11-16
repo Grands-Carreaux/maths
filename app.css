@@ -439,3 +439,14 @@ body.en-jeu .jeu-ctrl .key:active { background: rgba(255,255,255,.2); }
 .graph .g-titre { font-size: 11px; fill: var(--muted); }
 .enonce .liste { font-size: 22px; font-weight: 700; letter-spacing: .02em; }
 .enonce .prog { margin: 6px 0; padding: 8px 12px; border-left: 4px solid var(--blue); background: var(--blue-soft); border-radius: 0 8px 8px 0; font-size: 16px; font-weight: 600; line-height: 1.5; }
+
+/* ---------- Espace professeur : tri et sélection multiple ---------- */
+th button.tri { all: unset; cursor: pointer; font: inherit; text-transform: inherit; letter-spacing: inherit; color: var(--muted); white-space: nowrap; }
+th button.tri:hover, th button.tri.actif { color: var(--blue); }
+th button.tri:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+.col-sel { width: 36px; padding-right: 0; }
+.col-sel input { width: 18px; height: 18px; accent-color: var(--blue); cursor: pointer; }
+tr.coche td { background: var(--blue-soft); }
+.barre-sel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 48px; margin-bottom: 10px; }
+.barre-sel .aide-sel { color: var(--muted); font-size: 14px; }
+.barre-sel.confirm-zone { padding: 10px 14px; border-radius: 12px; background: var(--ko-bg); color: var(--ko); }
