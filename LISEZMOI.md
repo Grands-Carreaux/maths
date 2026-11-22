@@ -201,6 +201,13 @@ Il suffit d'y copier les fichiers.
 
 ## Les exerciseurs
 
+**Rangement par domaines.** Après le choix 4e / 3e, l'élève voit six tuiles de couleur : Nombres et calculs (bleu),
+Espace et géométrie (vert), Grandeurs et mesures (orange), Données et fonctions (violet), Algorithmique (rose)
+et, en 3e seulement, Automatismes du brevet (jaune). Un domaine sans exerciseur s'affiche grisé avec « Bientôt ».
+Chaque exerciseur est rangé grâce à son champ `domaine` (dans `themes.js`) : « Fractions » et « Calcul littéral »
+vont dans Nombres et calculs, « Géométrie » dans Espace et géométrie. La liste est en haut de `app.js` (`DOMAINES`).
+Quand un élève réussit une série (8/10 ou plus), une pluie de symboles (π, √, ∞, Σ…) tombe sur l'écran.
+
 Il y a 3 niveaux de difficulté par exerciseur. Tous sont pour la 4e et la 3e, sauf ceux marqués 3e.
 
 ### Calcul littéral

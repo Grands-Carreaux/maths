@@ -6,6 +6,28 @@
   const THEMES = window.THEMES;
   const { Q, gcd, fracQ, M, cle } = window.MATHS;
   const NIVEAUX = ['4e', '3e'];
+  /* Les grands domaines du programme. « sous » : les chapitres (champ domaine des exerciseurs dans themes.js) rangés dans ce domaine.
+     « niveaux » : si présent, le domaine n'apparaît que pour ces niveaux. */
+  const ICO = {
+    nombres: '<path d="M3 8h9M7.5 3.5v9M15 16l6 6M21 16l-6 6"/>',
+    geometrie: '<path d="M4 21V4l17 17z"/><path d="M4 16h5v5"/>',
+    grandeurs: '<circle cx="12" cy="13" r="8.5"/><path d="M12 8.5V13l3 2M10 2h4"/>',
+    donnees: '<path d="M3 21h18"/><path d="M5 21v-6h3.5v6M10.5 21V9H14v12M16 21V4h3.5v17"/>',
+    algo: '<path d="M4 7h6l1.5 2H20v4H11.5L10 15H4z"/><path d="M4 18h9"/>',
+    automatismes: '<path d="M13 2 5 14h6l-1 8 8-12h-6z"/>'
+  };
+  const DOMAINES = [
+    { id: 'nombres', nom: 'Nombres et calculs', c: '#3a5bd9', forme: '50%', sous: ['Fractions', 'Calcul littéral'] },
+    { id: 'geometrie', nom: 'Espace et géométrie', c: '#14866d', forme: '0', sous: ['Géométrie'] },
+    { id: 'grandeurs', nom: 'Grandeurs et mesures', c: '#e8590c', forme: '30%', sous: [] },
+    { id: 'donnees', nom: 'Données et fonctions', c: '#8338ec', forme: '12%', sous: ['Fonctions', 'Statistiques', 'Probabilités'] },
+    { id: 'algo', nom: 'Algorithmique', c: '#d6336c', forme: '40% 0', sous: ['Scratch'] },
+    { id: 'automatismes', nom: 'Automatismes du brevet', c: '#c98a00', forme: '50% 0', sous: ['Automatismes'], niveaux: ['3e'] }
+  ];
+  const domaineDe = (t) => DOMAINES.find((d) => d.nom === t.domaine || d.sous.includes(t.domaine)) || DOMAINES[0];
+  const icone = (id) => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + ICO[id] + '</svg>';
+  const styleDom = (d) => 'style="--c:' + d.c + ';--forme:' + d.forme + '"';
+  const reussi = (t) => t.niveaux.some((lv, i) => { const b = store.get('best:' + t.id + ':' + (i + 1), null); return b && b.s >= 0.8 * b.t; });
   const AUTRE = 'Autre';
   const app = document.getElementById('app');
   document.title = C.nomSite;
@@ -80,6 +102,7 @@
     const h = decodeURIComponent(location.hash.slice(1));
     if (h === 'prof') vueProf();
     else if (h === 'jeu') vueJeu();
+    else if (h.startsWith('dom-')) vueDomaine(h.slice(4));
     else if (h.startsWith('ex-')) { const t = THEMES.find((x) => 'ex-' + x.id === h); t ? vueTheme(t) : vuePortail(); }
     else vuePortail();
     window.scrollTo(0, 0);
@@ -96,8 +119,11 @@
     app.innerHTML =
       '<div class="wrap">' +
       '<header class="top"><div class="brand"><div class="logo" aria-hidden="true"></div><div><h1>' + esc(C.nomSite) + '</h1><p>Exerciseurs de mathématiques</p></div></div>' +
-      (moi ? '<div class="me">Bonjour <strong>' + esc(moi.prenom) + '</strong> · ' + esc(moi.classe) + '<button class="btn btn-ghost" id="chg">Modifier</button><button class="btn btn-ghost" id="changer">Changer d’élève</button></div>' : '') +
-      '</header><div id="identzone"></div>' +
+      '</header>' +
+      (moi ? '<section class="profil"><svg class="avatar" viewBox="0 0 48 48" aria-hidden="true"><polygon points="24,4 45,42 3,42" fill="#fb5607"/><text x="24" y="37" text-anchor="middle">' + esc(moi.prenom.charAt(0).toUpperCase()) + '</text></svg>' +
+        '<div class="profil-txt"><span>Bonjour</span><strong>' + esc(moi.prenom) + '</strong><span>' + esc(moi.classe) + '</span></div>' +
+        '<div class="profil-btns"><button class="btn btn-ghost" id="chg">Modifier</button><button class="btn btn-ghost" id="changer">Changer d’élève</button></div></section>' : '') +
+      '<div id="identzone"></div>' +
       '<nav class="niveaux" aria-label="Niveau"><span class="niv-label">Ton niveau</span>' +
       NIVEAUX.map((n) => '<button class="niv" data-n="' + n + '" aria-pressed="' + (n === niveau) + '">' + n + '</button>').join('') +
       '</nav><div id="jeuzone"></div><div id="grid"></div>' +
@@ -122,15 +148,36 @@
     if (!niveau) { grid.innerHTML = '<div class="card empty">Choisis ton niveau pour voir les exerciseurs.</div>'; return; }
     const liste = THEMES.filter((t) => t.classes.includes(niveau));
     if (!liste.length) { grid.innerHTML = '<div class="card empty">Pas encore d’exerciseur pour la ' + niveau + '.</div>'; return; }
-    const domaines = [...new Set(liste.map((t) => t.domaine))];
-    grid.innerHTML = domaines.map((d) => '<section class="domaine"><h2>' + esc(d) + '</h2><div class="grid">' + liste.filter((t) => t.domaine === d).map((t) => {
-      const prog = t.niveaux.map((lv, i) => {
-        const b = store.get('best:' + t.id + ':' + (i + 1), null);
-        return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + (t.parties ? esc(lv.court || lv.nom) : '★'.repeat(i + 1)) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>';
-      }).join('') + ((ec) => (ec ? '<span class="pill pause">En pause · question ' + questionEnCours(ec) + '/' + ec.n + '</span>' : ''))(lireEnCours(t));
-      return '<a class="card theme" href="#ex-' + t.id + '"><h3>' + esc(t.titre) + '</h3><p>' + esc(t.resume) + '</p>' +
-        '<div class="prog" aria-label="Tes meilleurs scores">' + prog + '</div></a>';
-    }).join('') + '</div></section>').join('');
+    grid.innerHTML = '<div class="doms">' + DOMAINES.filter((d) => !d.niveaux || d.niveaux.includes(niveau)).map((d) => {
+      const lt = liste.filter((t) => domaineDe(t) === d), ok = lt.filter(reussi).length;
+      if (!lt.length) return '<div class="dom bientot" ' + styleDom(d) + '>' + icone(d.id) + '<b>' + esc(d.nom) + '</b><small>Bientôt</small></div>';
+      return '<a class="dom" href="#dom-' + d.id + '" ' + styleDom(d) + '>' + icone(d.id) + '<b>' + esc(d.nom) + '</b><small>' + lt.length + ' exerciseur' + (lt.length > 1 ? 's' : '') +
+        (ok ? ' · ' + ok + ' réussi' + (ok > 1 ? 's' : '') : '') + '</small></a>';
+    }).join('') + '</div>';
+  }
+
+  /* =====================================================================
+     DOMAINE : les exerciseurs d'un domaine, rangés par chapitre
+     ===================================================================== */
+  function carteTheme(t) {
+    const prog = t.niveaux.map((lv, i) => {
+      const b = store.get('best:' + t.id + ':' + (i + 1), null);
+      return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + (t.parties ? esc(lv.court || lv.nom) : '★'.repeat(i + 1)) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>';
+    }).join('') + ((ec) => (ec ? '<span class="pill pause">En pause · question ' + questionEnCours(ec) + '/' + ec.n + '</span>' : ''))(lireEnCours(t));
+    return '<a class="card theme" href="#ex-' + t.id + '"><h3>' + esc(t.titre) + '</h3><p>' + esc(t.resume) + '</p>' +
+      '<div class="prog" aria-label="Tes meilleurs scores">' + prog + '</div></a>';
+  }
+  function vueDomaine(id) {
+    const d = DOMAINES.find((x) => x.id === id);
+    let niveau = store.get('niveau', null);
+    if (!NIVEAUX.includes(niveau)) { const moi = getMoi(); niveau = moi ? niveauDeClasse(moi.classe) : null; }
+    const liste = d && niveau ? THEMES.filter((t) => t.classes.includes(niveau) && domaineDe(t) === d) : [];
+    if (!liste.length) { location.hash = ''; return; }
+    const chap = [...new Set(liste.map((t) => t.domaine))];
+    app.innerHTML = '<div class="wrap page-dom" ' + styleDom(d) + '><a class="btn btn-ghost back" href="#">← Tous les domaines</a>' +
+      '<div class="dom-tete">' + icone(d.id) + '<div><span class="eyebrow">' + niveau + '</span><h1>' + esc(d.nom) + '</h1></div></div>' +
+      chap.map((c) => '<section class="domaine">' + (chap.length > 1 || c !== d.nom ? '<h2>' + esc(c) + '</h2>' : '') + '<div class="grid">' +
+        liste.filter((t) => t.domaine === c).map(carteTheme).join('') + '</div></section>').join('') + '</div>';
   }
 
   /* =====================================================================
@@ -139,7 +186,7 @@
   function vueTheme(t) {
     const moi = getMoi(), ec = lireEnCours(t);
     app.innerHTML =
-      '<div class="wrap"><a class="btn btn-ghost back" href="#">← Tous les exerciseurs</a>' +
+      '<div class="wrap page-dom" ' + styleDom(domaineDe(t)) + '><a class="btn btn-ghost back" href="#dom-' + domaineDe(t).id + '">← ' + esc(domaineDe(t).nom) + '</a>' +
       '<div class="thead"><span class="eyebrow">' + esc(t.domaine) + ' · ' + t.classes.join(', ') + '</span><h1>' + esc(t.titre) + '</h1><p>' + esc(t.resume) + (t.parties ? ' Choisis une partie : une' : t.niveaux.length > 1 ? ' Choisis ta difficulté : une' : ' Une') + ' série compte ' + C.nbQuestions + ' questions.</p></div>' +
       '<div id="identzone"></div>' + (ec
         ? '<div class="card reprise"><div><strong>Série en pause</strong><span class="sub">' + (avecEtoiles(t) ? stars(ec.lvl) + ' ' : '') + esc(t.niveaux[ec.lvl - 1].nom) + ' · question ' + questionEnCours(ec) + '/' + ec.n + ' · ' + ec.score + (ec.score > 1 ? ' bonnes réponses' : ' bonne réponse') + '</span>' +
@@ -610,9 +657,10 @@
       '<div class="btn-row">' +
       (p >= 0.8 && lvl < 3 ? '<button class="btn btn-primary" id="up">Passer au niveau ' + '★'.repeat(lvl + 1) + '</button>' : '') +
       '<button class="btn ' + (p >= 0.8 && lvl < 3 ? '' : 'btn-primary') + '" id="again">Nouvelle série</button>' +
-      '<a class="btn" href="#">Autres exerciseurs</a></div>' +
+      '<a class="btn" href="#dom-' + domaineDe(t).id + '">Autres exerciseurs</a></div>' +
       '<details class="card recap"><summary>Revoir mes réponses</summary><ol>' + recap + '</ol></details>' +
       '</div></div>';
+    if (reussie) pluie();
     app.querySelector('#again').onclick = () => demarrer(t, lvl);
     const up = app.querySelector('#up');
     if (up) up.onclick = () => demarrer(t, lvl + 1);
@@ -627,6 +675,19 @@
         else { el.textContent = 'Pas de connexion : ton résultat sera envoyé automatiquement la prochaine fois que tu ouvriras le site.'; el.className = 'send wait'; }
       });
     }
+  }
+
+  /* ---------- Pluie de symboles quand la série est réussie (8/10 ou plus) ---------- */
+  function pluie() {
+    try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { /* */ }
+    const sym = ['π', '√', '∞', 'Σ', '∫', '×', '÷', '≈', 'Δ', 'θ', '½', '%'], col = DOMAINES.map((d) => d.c).concat('#ffb703');
+    const z = document.createElement('div'); z.className = 'pluie'; z.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 28; i++) {
+      const e = document.createElement('span'); e.textContent = sym[i % sym.length];
+      e.style.cssText = 'left:' + (Math.random() * 96) + '%;color:' + col[i % col.length] + ';font-size:' + (20 + Math.random() * 22) + 'px;animation-delay:' + (Math.random() * 1.2) + 's;animation-duration:' + (2.2 + Math.random() * 1.6) + 's';
+      z.appendChild(e);
+    }
+    document.body.appendChild(z); setTimeout(() => z.remove(), 5200);
   }
 
   /* ---------- Envoi des résultats (avec file d'attente hors connexion) ---------- */

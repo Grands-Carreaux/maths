@@ -1,18 +1,20 @@
 /* Grands Carreaux — un cahier à grands carreaux (Seyès) : encre bleue, marge rouge.
    Pensé d'abord pour tablette et téléphone. */
 :root {
-  --paper: #f6f8fc;
+  --paper: #fffaf3;
   --surface: #ffffff;
-  --ink: #1a2744;
-  --muted: #586683;
-  --blue: #2a56c6;
+  --ink: #22223b;
+  --muted: #5e5a72;
+  --blue: #3a5bd9;
   --blue-ink: #ffffff;
   --blue-soft: #e8eefb;
   --margin: #d64a5c;
   --margin-soft: #fbe9ec;
   --line: rgba(42, 86, 198, 0.10);
   --line-strong: rgba(42, 86, 198, 0.22);
-  --border: #d8e0ef;
+  --border: #ebe2d3;
+  --nuit: #22223b;
+  --soleil: #ffb703;
   --ok: #1d7f47;
   --ok-bg: #e2f3e9;
   --mid: #9a6200;
@@ -27,10 +29,10 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #0f1528; --surface: #171f38; --ink: #e5eaf6; --muted: #9ba7c3;
+    --paper: #15152a; --surface: #1f1f3a; --ink: #eceaf6; --muted: #a7a3c0; --nuit: #2b2b52;
     --blue: #86a8ff; --blue-ink: #0f1528; --blue-soft: #222e55; --margin: #ff7f8e; --margin-soft: #3a2030;
     --line: rgba(134, 168, 255, 0.08); --line-strong: rgba(134, 168, 255, 0.16);
-    --border: #2a3558; --ok: #63d394; --ok-bg: #143323; --mid: #f0b24a; --mid-bg: #3a2b10;
+    --border: #34345c; --ok: #63d394; --ok-bg: #143323; --mid: #f0b24a; --mid-bg: #3a2b10;
     --ko: #ff8b78; --ko-bg: #3b1d19; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
     color-scheme: dark;
   }
@@ -454,3 +456,62 @@ tr.coche td { background: var(--blue-soft); }
 /* Lien vers la page des familles, en bas de toutes les pages */
 .pied-fam { text-align: center; padding: 18px 16px 28px; font-size: .85rem; }
 .pied-fam a { color: var(--muted); }
+
+/* =====================================================================
+   Présentation colorée : profil, niveaux, tuiles des domaines, pluie de symboles
+   ===================================================================== */
+.profil {
+  position: relative; overflow: hidden; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px;
+  background: var(--nuit); color: #fff; border-radius: 20px; padding: 16px 18px; margin-bottom: 18px;
+}
+.profil::after { content: ""; position: absolute; right: -34px; top: -34px; width: 120px; height: 120px; border-radius: 50%; background: var(--soleil); opacity: .9; }
+.profil > * { position: relative; z-index: 1; }
+.avatar { width: 54px; height: 54px; flex: none; }
+.avatar text { font: 800 20px var(--f-head); fill: #fff; }
+.profil-txt { display: grid; flex: 1; min-width: 140px; line-height: 1.25; }
+.profil-txt span { font-size: 14px; opacity: .8; }
+.profil-txt strong { font-family: var(--f-head); font-size: 22px; }
+.profil-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.profil .btn-ghost { color: #fff; min-height: 40px; background: rgba(255,255,255,.12); border-radius: 10px; padding: 0 12px; }
+.niv { border-color: var(--ink); color: var(--ink); }
+.niv[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+.doms { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.dom {
+  position: relative; overflow: hidden; display: grid; gap: 6px; align-content: start; min-height: 120px;
+  padding: 14px 14px 14px 20px; border-radius: 16px; text-decoration: none; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.dom::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--c); }
+.dom::after {
+  content: ""; position: absolute; right: -16px; bottom: -16px; width: 64px; height: 64px; border-radius: var(--forme, 50%);
+  background: var(--c); opacity: .13; transform: rotate(18deg); transition: transform .3s;
+}
+a.dom:hover::after { transform: rotate(60deg) scale(1.15); }
+a.dom:hover { border-color: var(--c); }
+.dom b { font-family: var(--f-head); font-size: 17px; line-height: 1.2; color: var(--c); }
+.dom small { color: var(--muted); font-size: 13px; }
+.dom.bientot { opacity: .55; box-shadow: none; }
+.ico { width: 30px; height: 30px; fill: none; stroke: var(--c); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+.page-dom .eyebrow { color: var(--c); }
+.dom-tete { display: flex; align-items: center; gap: 14px; margin: 8px 0 20px; }
+.dom-tete .ico { width: 52px; height: 52px; padding: 10px; border-radius: 14px; background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
+.dom-tete h1 { font-size: 28px; color: var(--c); }
+.page-dom .theme { border-left: 6px solid var(--c); }
+.page-dom .theme:hover { border-color: var(--c); }
+.page-dom .level { border-left: 6px solid var(--c); }
+.page-dom .thead h1 { color: var(--c); }
+@media (prefers-color-scheme: dark) {
+  .dom b, .dom-tete h1, .page-dom .eyebrow, .page-dom .thead h1 { color: color-mix(in srgb, var(--c) 55%, white); }
+  .ico { stroke: color-mix(in srgb, var(--c) 60%, white); }
+}
+
+.pluie { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+.pluie span { position: absolute; top: -60px; font-family: "Times New Roman", Georgia, serif; font-weight: 700; animation: tombe linear forwards; opacity: 0; }
+@keyframes tombe {
+  0% { transform: translateY(0) rotate(0); opacity: 0; }
+  10% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(105vh) rotate(200deg); opacity: 0; }
+}
