@@ -352,6 +352,28 @@
   /* =====================================================================
      THÈME : choix de la difficulté
      ===================================================================== */
+  /* ---------- Rappel de cours ---------- */
+  // lvl absent : tout le rappel, avec les compléments marqués d'étoiles ; sinon : la base et le complément de ce niveau.
+  function htmlCours(t, lvl) {
+    const c = t.cours, niv = c.niv || {};
+    const plus = lvl ? (niv[lvl] ? '<div class="cours-niv">' + niv[lvl] + '</div>' : '')
+      : Object.keys(niv).map((k) => '<div class="cours-niv"><span class="cours-etoiles">' + (avecEtoiles(t) ? '★'.repeat(+k) : esc(t.niveaux[k - 1].nom)) + '</span>' + niv[k] + '</div>').join('');
+    return '<div class="cours-txt">' + c.base + plus + '</div>';
+  }
+  function ouvrirCours(auto) {
+    const t = S.t, z = document.createElement('div');
+    z.className = 'cours-pop'; z.setAttribute('role', 'dialog'); z.setAttribute('aria-modal', 'true'); z.setAttribute('aria-labelledby', 'cours-titre');
+    z.innerHTML = '<div class="card cours-boite"><h2 id="cours-titre">' + (auto ? 'Petit rappel avant de continuer' : 'Rappel de cours') + '</h2>' + htmlCours(t, S.lvl) +
+      '<button class="btn btn-primary" id="cours-ok">' + (auto ? 'J’ai compris, je continue' : 'Retour à la question') + '</button></div>';
+    document.body.appendChild(z);
+    const fermer = () => { z.remove(); document.removeEventListener('keydown', esc_, true); };
+    const esc_ = (e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); fermer(); } };
+    document.addEventListener('keydown', esc_, true);
+    z.querySelector('#cours-ok').onclick = fermer;
+    z.addEventListener('click', (e) => { if (e.target === z) fermer(); });
+    z.querySelector('#cours-ok').focus();
+  }
+
   function vueTheme(t) {
     const moi = getMoi(), ec = lireEnCours(t);
     app.innerHTML =
@@ -367,6 +389,12 @@
           '<span><strong>' + esc(lv.nom) + '</strong><span class="sub">' + (b ? 'Ton meilleur score : ' + b.s + '/' + b.t : 'Pas encore essayé') + '</span></span><span aria-hidden="true">›</span></button>';
       }).join('') + '</div>' +
       (C.urlScript ? '' : '<p class="notice">Mode démonstration : les résultats ne sont pas encore envoyés au professeur.</p>') + '</div>';
+    if (t.cours) {
+      const ferme = store.get('cours-ferme:' + t.id, false);
+      app.querySelector('.thead').insertAdjacentHTML('afterend', '<details class="card cours"' + (ferme ? '' : ' open') + '><summary><span>Rappel de cours</span><span class="cours-voir">' + (ferme ? 'Revoir le rappel' : 'Replier') + '</span></summary>' + htmlCours(t) + '</details>');
+      const d = app.querySelector('details.cours');
+      d.addEventListener('toggle', () => { store.set('cours-ferme:' + t.id, !d.open); d.querySelector('.cours-voir').textContent = d.open ? 'Replier' : 'Revoir le rappel'; });
+    }
     if (t.rappel) app.querySelector('.thead').insertAdjacentHTML('afterend', '<p class="rappel" role="note"><svg viewBox="0 0 20 24" width="18" height="22" aria-hidden="true"><rect x="1" y="1" width="18" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="4" width="12" height="5" rx="1" fill="currentColor"/><g fill="currentColor"><circle cx="6" cy="13" r="1.4"/><circle cx="10" cy="13" r="1.4"/><circle cx="14" cy="13" r="1.4"/><circle cx="6" cy="18" r="1.4"/><circle cx="10" cy="18" r="1.4"/><circle cx="14" cy="18" r="1.4"/></g></svg>' + esc(t.rappel) + '</p>');
     if (!moi) app.querySelector('#identzone').appendChild(formIdent(() => vueTheme(t)));
     if (ec) {
@@ -409,17 +437,18 @@
   const questionEnCours = (e) => Math.min(e.i + (e.repondu ? 2 : 1), e.n);
   function sauver() {
     const k = cleEnCours(S.t);
-    if (k) store.set(k, { lvl: S.lvl, i: S.i, n: S.n, score: S.score, serie: S.serie, meilleureSerie: S.meilleureSerie, ecoule: Date.now() - S.debut, vus: [...S.vus], cats: [...(S.cats || [])], hist: S.hist, q: S.q, repondu: S.repondu, date: Date.now() });
+    if (k) store.set(k, { lvl: S.lvl, i: S.i, n: S.n, score: S.score, serie: S.serie, meilleureSerie: S.meilleureSerie, ecoule: Date.now() - S.debut, vus: [...S.vus], cats: [...(S.cats || [])], hist: S.hist, q: S.q, repondu: S.repondu, erreursSuite: S.erreursSuite || 0, coursMontre: !!S.coursMontre, ratt: S.ratt || { n: 0, ok: 0 }, enRattrapage: !!S.enRattrapage, date: Date.now() });
   }
   function effacer(t) { const k = cleEnCours(t); if (k) store.del(k); }
   function reprendre(t, e) {
     // le temps passé hors de la série n'est pas compté
     S = Object.assign({}, e, { t, vus: new Set(e.vus), cats: new Set(e.cats || []), debut: Date.now() - e.ecoule });
+    if (!S.ratt) S.ratt = { n: 0, ok: 0 };
     if (e.repondu) suivante(); else poser(e.q);
   }
 
   function demarrer(t, lvl) {
-    S = { t, lvl, i: 0, n: C.nbQuestions, score: 0, serie: 0, meilleureSerie: 0, debut: Date.now(), vus: new Set(), cats: new Set(), hist: [] };
+    S = { t, lvl, i: 0, n: C.nbQuestions, score: 0, serie: 0, meilleureSerie: 0, debut: Date.now(), vus: new Set(), cats: new Set(), hist: [], erreursSuite: 0, coursMontre: false, ratt: { n: 0, ok: 0 }, enRattrapage: false };
     poser();
   }
 
@@ -484,10 +513,11 @@
     app.innerHTML =
       '<div class="play">' +
       '<div class="bar"><button class="iconbtn" id="quit" aria-label="Quitter la série">✕</button>' +
-      '<span class="count">' + (S.i + 1) + '/' + S.n + '</span><div class="track"><i style="width:' + (S.i / S.n * 100) + '%"></i></div>' +
+      (t.cours ? '<button class="iconbtn cours-btn" id="cours" aria-label="Rappel de cours">Rappel</button>' : '') +
+      '<span class="count">' + (S.enRattrapage ? 'Rattrapage' : (S.i + 1) + '/' + S.n) + '</span><div class="track"><i style="width:' + (S.i / S.n * 100) + '%"></i></div>' +
       '<span class="score">✓ ' + S.score + '</span></div>' +
       '<div id="quitzone"></div>' +
-      '<section class="sheet"><div class="consigne">' + esc(S.q.consigne || t.consigne) + (avecEtoiles(t) ? ' <span aria-hidden="true">' + stars(lvl) + '</span>' : '') + '</div>' +
+      '<section class="sheet">' + (S.enRattrapage ? '<div class="ratt-etiquette">Rattrapage · ne compte pas dans le score</div>' : '') + '<div class="consigne">' + esc(S.q.consigne || t.consigne) + (avecEtoiles(t) ? ' <span aria-hidden="true">' + stars(lvl) + '</span>' : '') + '</div>' +
       '<div class="enonce">' + S.q.enonce + '</div>' +
       '<div class="answer" id="ans"><span class="pre">' + esc(S.q.prefixe != null ? S.q.prefixe : estChoix() ? '' : (t.prefixe || '= ')) + '</span><span class="box" id="box"></span>' + (S.q.suffixe ? '<span class="suf">' + esc(S.q.suffixe) + '</span>' : '') + '</div></section>' +
       '<p class="hint" id="hint"></p>' +
@@ -500,6 +530,8 @@
       const b = e.target.closest('[data-k]'); if (b) touche(b.dataset.k);
     });
     app.querySelector('#quit').onclick = demanderQuitter;
+    if (t.cours) app.querySelector('#cours').onclick = () => ouvrirCours(false);
+    if (S.coursAFaire) { S.coursAFaire = false; S.coursMontre = true; ouvrirCours(true); }
     stopKeys();
     keyHandler = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input,select')) return;
@@ -510,7 +542,8 @@
       if (!v && estChoix() && /^[a-z]$/i.test(e.key)) v = e.key;
       if (!v) return;
       e.preventDefault();
-      if (S.repondu) { if (v === 'ok') suivante(); return; }
+      if (document.querySelector('.cours-pop')) return;
+      if (S.repondu) { if (v === 'ok') { const nx = app.querySelector('#next'); if (nx) nx.click(); else suivante(); } return; }
       if (estChoix()) {
         // 1, 2, 3… choisissent la 1re, 2e, 3e option ; une lettre (A, B, C, O pour Oui, N pour Non) choisit l'option qui commence par elle
         const opts = S.q.etapes[S.etape].options, txt = (o) => o.replace(/<[^>]+>/g, '').trim().toUpperCase();
@@ -742,20 +775,28 @@
     }
     const juste = egal && !pasSimplifie;
     S.repondu = true;
-    if (juste) { S.score++; S.serie++; S.meilleureSerie = Math.max(S.meilleureSerie, S.serie); } else S.serie = 0;
-    S.hist.push({ enonce: S.q.enonce, att: reponseHTML(S.q), juste });
+    const ratt = S.enRattrapage;
+    if (ratt) { S.ratt.n++; if (juste) S.ratt.ok++; S.hist[S.hist.length - 1].ratt = juste; }
+    else {
+      if (juste) { S.score++; S.serie++; S.meilleureSerie = Math.max(S.meilleureSerie, S.serie); } else S.serie = 0;
+      S.hist.push({ enonce: S.q.enonce, att: reponseHTML(S.q), juste });
+      S.erreursSuite = juste ? 0 : (S.erreursSuite || 0) + 1;
+      if (S.erreursSuite >= 2 && !S.coursMontre && S.t.cours) S.coursAFaire = true; // rappel affiché avant la question suivante
+    }
     sauver();
     afficherSaisie();
     app.querySelector('#ans').classList.add(juste ? 'ok' : 'ko');
     app.querySelector('.score').textContent = '✓ ' + S.score;
-    app.querySelector('.track i').style.width = ((S.i + 1) / S.n * 100) + '%';
+    if (!ratt) app.querySelector('.track i').style.width = ((S.i + 1) / S.n * 100) + '%';
 
-    const der = S.i + 1 >= S.n;
+    const der = S.i + 1 >= S.n, proposeRatt = !juste && !ratt && S.t.rattrapage;
     const bravo = ['Exact !', 'Bravo !', 'Bien joué !', 'Parfait !', 'Juste !'];
-    const bouton = '<button class="btn btn-primary" id="next">' + (der ? 'Voir mon résultat' : 'Question suivante') + '</button>';
+    const bouton = proposeRatt
+      ? '<div class="btn-row"><button class="btn btn-primary" id="next">Rattrapage : une question du même type</button><button class="btn btn-ghost" id="passer">Passer</button></div>'
+      : '<button class="btn btn-primary" id="next">' + (der ? 'Voir mon résultat' : 'Question suivante') + '</button>';
     let html;
     if (juste) {
-      html = '<div class="fb ok" role="status"><h2>' + bravo[Math.floor(Math.random() * bravo.length)] + '</h2>' +
+      html = '<div class="fb ok" role="status"><h2>' + (ratt ? 'Bien rattrapé !' : bravo[Math.floor(Math.random() * bravo.length)]) + '</h2>' +
         (conseil ? '<p>' + conseil + '</p>' : '') +
         (S.serie >= 3 ? '<p>' + S.serie + ' bonnes réponses d’affilée.</p>' : '') + bouton + '</div>';
     } else {
@@ -770,13 +811,25 @@
     app.querySelector('#zone').innerHTML = html;
     app.querySelector('#hint').textContent = '';
     const nx = app.querySelector('#next');
-    nx.onclick = suivante;
+    nx.onclick = proposeRatt ? rattrapage : suivante;
+    const ps = app.querySelector('#passer'); if (ps) ps.onclick = suivante;
     nx.focus({ preventScroll: true });
   }
 
   function secouer() { const a = app.querySelector('#ans'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
 
+  // Rattrapage (automatismes) : une question du même type (q.cat), qui ne compte pas dans le score
+  function rattrapage() {
+    const cat = S.q.cat, gens = [S.t.niveaux[S.lvl - 1]].concat(S.t.niveaux.filter((lv, i) => i !== S.lvl - 1)); // « Tout mélangé » : on cherche aussi dans chaque partie
+    let q = null;
+    for (const gen of gens) for (let k = 0; k < 80 && !q; k++) { const c = gen.gen(); if (c.cat === cat && c.enonce !== S.q.enonce) q = c; }
+    if (!q) return suivante();
+    S.enRattrapage = true;
+    poser(q);
+  }
+
   function suivante() {
+    S.enRattrapage = false;
     S.i++;
     if (S.i >= S.n) bilan(); else poser();
   }
@@ -822,7 +875,7 @@
       id: uid(), date: new Date().toISOString(), prenom: moi.prenom, classe: moi.classe,
       themeId: t.id, theme: t.titre, niveau: lvl, niveauNom: t.niveaux[lvl - 1].nom,
       score, total: n, duree: Math.round(duree),
-      detail: S.hist.map((h, i) => 'Q' + (i + 1) + (h.juste ? ' ok' : ' faux')).join(' ')
+      detail: S.hist.map((h, i) => 'Q' + (i + 1) + (h.juste ? ' ok' : ' faux') + (h.ratt == null ? '' : h.ratt ? ' ratt ok' : ' ratt faux')).join(' ')
     };
     const recap = S.hist.map((h, i) => '<li><span class="n">' + (i + 1) + '.</span><span>' + h.enonce + '</span><span class="' + (h.juste ? 'ok">✓' : 'ko">✗ ' + h.att) + '</span></li>').join('');
     app.innerHTML =
@@ -830,7 +883,8 @@
       '<span class="eyebrow">' + esc(t.titre) + ' · ' + (avecEtoiles(t) ? stars(lvl) + ' ' : '') + esc(t.niveaux[lvl - 1].nom) + '</span>' +
       '<div class="big">' + score + '<small>/' + n + '</small></div><h1>' + titre + '</h1>' +
       '<div class="stats"><div class="card stat"><b>' + fmtDuree(duree) + '</b><span>Temps</span></div><div class="card stat"><b>' + S.meilleureSerie + '</b><span>Meilleure série</span></div></div>' +
-      xpTxt + '<p class="send" id="send">' + (C.urlScript ? 'Envoi du résultat à ton professeur…' : 'Mode démonstration : le résultat n’est pas envoyé.') + '</p>' +
+      xpTxt + (S.ratt && S.ratt.n ? '<p class="ratt-bilan">Rattrapages : ' + S.ratt.ok + ' réussi' + (S.ratt.ok > 1 ? 's' : '') + ' sur ' + S.ratt.n + '</p>' : '') +
+      '<p class="send" id="send">' + (C.urlScript ? 'Envoi du résultat à ton professeur…' : 'Mode démonstration : le résultat n’est pas envoyé.') + '</p>' +
       '<a class="card gain" href="#jeu"><span class="jeu-icone">' + ICONE_JEU + '</span><span class="jeu-txt"><strong>' +
         (bonusApres > bonusAvant ? 'Bravo, 8/10 ou plus : +1 vie pour ' + JEU.nom + ' !' : reussie ? 'Réserve de vies bonus pleine !' : JEU.nom) + '</strong>' +
         '<span>' + (reussie ? 'Ta prochaine partie : ' + txtVies(bonusApres) + '.' : 'Fais 8/10 ou plus pour gagner une vie bonus. Tu peux quand même jouer !') + '</span></span>' + pastilles(bonusApres) + '</a>' +

@@ -1274,6 +1274,39 @@
     }
   ];
 
+  /* ---------- Rappels de cours : « base » toujours affichée, puis un complément propre à certains niveaux ---------- */
+  const sup2 = (x) => x + '<sup>2</sup>', ex = (s) => '<p class="ex"><em>Ex. :</em> ' + s + '</p>', p = (s) => '<p>' + s + '</p>';
+  const COURS = {
+    'multiplier-relatifs': { base: '<p class="regles">positif × positif = <b>positif</b><br>négatif × négatif = <b>positif</b><br>positif × négatif = <b>négatif</b><br>négatif × positif = <b>négatif</b></p>' + p('Même règle pour la division ÷.') + ex('(' + M + '6) × (' + M + '7) = 42'),
+      niv: { 2: p('Plusieurs facteurs : un nombre <b>pair</b> de facteurs négatifs donne un résultat <b>positif</b> ; un nombre <b>impair</b>, un résultat <b>négatif</b>.') + ex('(' + M + '2) × 3 × (' + M + '5) = 30'),
+        3: p('Priorités : d’abord les parenthèses, puis × et ÷, puis + et ' + M + '.') + p(sup2('(' + M + '3)') + ' = 9, mais ' + M + sup2('3') + ' = ' + M + '9.') } },
+    'simplifier-expr': { base: p('3 × <i>x</i> = 3<i>x</i> &nbsp; <i>a</i> × <i>b</i> = <i>ab</i> &nbsp; <i>x</i> × <i>x</i> = <i>x</i><sup>2</sup> &nbsp; <i>x</i> × <i>x</i> × <i>x</i> = <i>x</i><sup>3</sup>') + ex('2 × <i>x</i> × 5 × <i>x</i> = 10<i>x</i><sup>2</sup>'),
+      niv: { 3: p('On simplifie chaque produit séparément : 3 × <i>x</i> + 2 × <i>x</i> × <i>x</i> = 3<i>x</i> + 2<i>x</i><sup>2</sup>') } },
+    reduire: { base: p('On regroupe les <i>x</i> avec les <i>x</i>, et les nombres avec les nombres.') + ex('5<i>x</i> + 3 + 2<i>x</i> + 4 = 7<i>x</i> + 7') + p('3<i>x</i> + 2 ne se réduit pas.'),
+      niv: { 2: p('5<i>x</i> ' + M + ' 8<i>x</i> = ' + M + '3<i>x</i>'), 3: p('<i>x</i><sup>2</sup> et <i>x</i> ne se regroupent pas : 4<i>x</i><sup>2</sup> + 3<i>x</i> ' + M + ' <i>x</i><sup>2</sup> = 3<i>x</i><sup>2</sup> + 3<i>x</i>') } },
+    distributivite: { base: p('<i>k</i>(<i>a</i> + <i>b</i>) = <i>ka</i> + <i>kb</i> &nbsp; <i>k</i>(<i>a</i> ' + M + ' <i>b</i>) = <i>ka</i> ' + M + ' <i>kb</i>') + ex('3(<i>x</i> + 4) = 3<i>x</i> + 12'),
+      niv: { 2: p('2<i>x</i>(3<i>x</i> + 5) = 6<i>x</i><sup>2</sup> + 10<i>x</i>'), 3: p('2(<i>x</i> + 3) ' + M + ' 3(<i>x</i> ' + M + ' 1) = 2<i>x</i> + 6 ' + M + ' 3<i>x</i> + 3 = ' + M + '<i>x</i> + 9') } },
+    'double-distributivite': { base: p('(<i>a</i> + <i>b</i>)(<i>c</i> + <i>d</i>) = <i>ac</i> + <i>ad</i> + <i>bc</i> + <i>bd</i>') + ex('(<i>x</i> + 2)(<i>x</i> + 5) = <i>x</i><sup>2</sup> + 5<i>x</i> + 2<i>x</i> + 10 = <i>x</i><sup>2</sup> + 7<i>x</i> + 10'),
+      niv: { 2: p('(<i>x</i> ' + M + ' 3)(<i>x</i> + 4) = <i>x</i><sup>2</sup> + 4<i>x</i> ' + M + ' 3<i>x</i> ' + M + ' 12 = <i>x</i><sup>2</sup> + <i>x</i> ' + M + ' 12') } },
+    'identite-remarquable': { base: p('(<i>a</i> ' + M + ' <i>b</i>)(<i>a</i> + <i>b</i>) = <i>a</i><sup>2</sup> ' + M + ' <i>b</i><sup>2</sup>') + ex('(<i>x</i> ' + M + ' 3)(<i>x</i> + 3) = <i>x</i><sup>2</sup> ' + M + ' 9'),
+      niv: { 2: p('(5<i>x</i>)<sup>2</sup> = 25<i>x</i><sup>2</sup>, donc (5<i>x</i> ' + M + ' 9)(5<i>x</i> + 9) = 25<i>x</i><sup>2</sup> ' + M + ' 81') } },
+    factorisation: { base: p('<i>ka</i> + <i>kb</i> = <i>k</i>(<i>a</i> + <i>b</i>)') + ex('6<i>x</i> + 15 = 3(2<i>x</i> + 5)'),
+      niv: { 2: p('4<i>x</i><sup>2</sup> + 6<i>x</i> = 2<i>x</i>(2<i>x</i> + 3)'), 3: p('<i>a</i><sup>2</sup> ' + M + ' <i>b</i><sup>2</sup> = (<i>a</i> ' + M + ' <i>b</i>)(<i>a</i> + <i>b</i>)') + ex('<i>x</i><sup>2</sup> ' + M + ' 49 = (<i>x</i> ' + M + ' 7)(<i>x</i> + 7)') } },
+    pythagore: { base: p('Si ABC est rectangle en A, alors <b>BC<sup>2</sup> = AB<sup>2</sup> + AC<sup>2</sup></b>.') + p('BC est l’hypoténuse : le côté opposé à l’angle droit, le plus long.'),
+      niv: { 1: p('BC = √(AB<sup>2</sup> + AC<sup>2</sup>)'), 2: p('AB<sup>2</sup> = BC<sup>2</sup> ' + M + ' AC<sup>2</sup>'), 3: p('BC = √(AB<sup>2</sup> + AC<sup>2</sup>) &nbsp; AB<sup>2</sup> = BC<sup>2</sup> ' + M + ' AC<sup>2</sup>') } },
+    'reciproque-pythagore': { base: p('On calcule séparément le carré du plus grand côté et la somme des carrés des deux autres.') + p('Égaux : le triangle est rectangle, au sommet opposé au plus grand côté. Différents : il n’est pas rectangle.') + ex('5<sup>2</sup> = 25 et 3<sup>2</sup> + 4<sup>2</sup> = 25, donc le triangle est rectangle.') },
+    vitesses: { base: p('<b><i>v</i> = <i>d</i> ÷ <i>t</i></b> &nbsp; <i>d</i> = <i>v</i> × <i>t</i> &nbsp; <i>t</i> = <i>d</i> ÷ <i>v</i>') + p('1 h = 60 min = 3 600 s &nbsp; 0,5 h = 30 min &nbsp; 0,25 h = 15 min'),
+      niv: { 3: p('km/h → m/s : ÷ 3,6 &nbsp; m/s → km/h : × 3,6') + ex('72 km/h = 20 m/s') } },
+    'fractions-egales': { base: p('On multiplie ou on divise le numérateur <b>et</b> le dénominateur par le même nombre.') + ex(F(2, 3) + ' = ' + F('2 × 4', '3 × 4') + ' = ' + F(8, 12)) },
+    'simplifier-fractions': { base: p('On divise le numérateur et le dénominateur par un diviseur commun, jusqu’à ce qu’il n’y en ait plus : la fraction est irréductible.') +
+      p('Divisible par 2 : le nombre est pair. Par 3 : la somme des chiffres est dans la table de 3. Par 5 : il se termine par 0 ou 5.') + ex(F(18, 24) + ' = ' + F(3, 4) + ' (on a divisé par 6)'),
+      niv: { 3: p(F(M + '<i>a</i>', M + '<i>b</i>') + ' = ' + F('<i>a</i>', '<i>b</i>') + ' &nbsp; ' + F('<i>a</i>', M + '<i>b</i>') + ' = ' + M + F('<i>a</i>', '<i>b</i>')) } },
+    'addition-fractions': { base: p('On met d’abord au même dénominateur, puis on additionne les numérateurs. On n’additionne <b>jamais</b> les dénominateurs.') + ex(F(1, 4) + ' + ' + F(5, 12) + ' = ' + F(3, 12) + ' + ' + F(5, 12) + ' = ' + F(8, 12) + ' = ' + F(2, 3)),
+      niv: { 2: p(F(2, 7) + ' ' + M + ' ' + F(1, 6) + ' = ' + F(12, 42) + ' ' + M + ' ' + F(7, 42) + ' = ' + F(5, 42)), 3: p('Parenthèses d’abord, puis de gauche à droite.') } }
+  };
+  THEMES.forEach((t) => { if (COURS[t.id]) t.cours = COURS[t.id]; });
+  const auto0 = THEMES.find((t) => t.id === 'automatismes'); if (auto0) auto0.rattrapage = true; // question de rattrapage après une erreur
+
   g.THEMES = THEMES;
   g.MATHS = { Q, gcd, fracQ, num, M, cle, lettresHTML };
 })(typeof window !== 'undefined' ? window : globalThis);

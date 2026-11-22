@@ -231,6 +231,18 @@ Il suffit d'y copier les fichiers.
   En touchant une étoile, l'élève voit ses coordonnées, ses meilleurs scores, et peut ouvrir l'exerciseur.
   Les étoiles se placent toutes seules quand on ajoute des exerciseurs.
 
+## Rappels de cours et rattrapage
+
+- **Rappel de cours** : sur la page de chaque exerciseur (sauf les automatismes), une carte « Rappel de cours »
+  donne la règle en quelques lignes avec un exemple ; les compléments propres à un niveau sont marqués ★★ ou ★★★.
+  L'élève peut la replier (l'appareil s'en souvient) et la rouvrir avec « Revoir le rappel ».
+- Pendant une série, le bouton **Rappel** (en haut, à côté de la croix) affiche la règle sans quitter la question.
+- **Après 2 erreurs d'affilée**, le rappel s'affiche tout seul avant la question suivante (une fois par série au plus).
+- Les textes des rappels sont dans `themes.js`, tout en bas (bloc `COURS`).
+- **Rattrapage (automatismes)** : après une erreur, l'élève peut demander une question du même type, avec d'autres nombres.
+  Elle ne compte pas dans le score (une seule par erreur ; bouton « Passer » pour continuer directement).
+  Le bilan affiche « Rattrapages : 2 réussis sur 3 », et le détail envoyé au tableur indique par exemple « Q4 faux ratt ok ».
+
 ## Les exerciseurs
 
 **Rangement par domaines.** Après le choix 4e / 3e, l'élève voit six tuiles de couleur : Nombres et calculs (bleu),
