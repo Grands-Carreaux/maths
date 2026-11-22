@@ -178,6 +178,7 @@
     const h = decodeURIComponent(location.hash.slice(1));
     if (h === 'prof') vueProf();
     else if (h === 'jeu') vueJeu();
+    else if (h === 'ciel') vueCiel();
     else if (h.startsWith('dom-')) vueDomaine(h.slice(4));
     else if (h.startsWith('ex-')) { const t = THEMES.find((x) => 'ex-' + x.id === h); t ? vueTheme(t) : vuePortail(); }
     else vuePortail();
@@ -219,7 +220,7 @@
     if (chg) chg.onclick = () => { iz.innerHTML = ''; iz.appendChild(formIdent(vuePortail)); iz.querySelector('input').focus(); };
 
     app.querySelectorAll('.niv').forEach((b) => b.onclick = () => { store.set('niveau', b.dataset.n); vuePortail(); });
-    if (moi) app.querySelector('#jeuzone').innerHTML = carteJeu();
+    if (moi) app.querySelector('#jeuzone').innerHTML = carteJeu() + (niveau ? carteCiel(niveau) : '');
     brancherXP(app);
     chargerAccueil(() => { majProfilAffiche(); const cz = app.querySelector('#conszone'); if (cz && niveau) cz.innerHTML = htmlConseils(niveau); });
     const grid = app.querySelector('#grid');
@@ -232,6 +233,95 @@
       return '<a class="dom" href="#dom-' + d.id + '" ' + styleDom(d) + '>' + icone(d.id) + '<b>' + esc(d.nom) + '</b><small>' + lt.length + ' exerciseur' + (lt.length > 1 ? 's' : '') +
         (ok ? ' · ' + ok + ' réussi' + (ok > 1 ? 's' : '') : '') + '</small></a>';
     }).join('') + '</div>';
+  }
+
+  /* =====================================================================
+     CONSTELLATION : chaque exerciseur est une étoile dans un repère ; celles d'un domaine dessinent une figure
+     ===================================================================== */
+  // Figures en unités du repère (0 à 10) : une ligne brisée, ou un cercle. Les étoiles sont réparties le long de la figure.
+  const FIGURES = {
+    nombres: { nom: 'π', traits: [[[0.5, 9.6], [5.5, 9.6]], [[1.8, 9.6], [1.3, 5]], [[4.2, 9.6], [4.8, 5]]] },
+    geometrie: { nom: 'triangle rectangle', traits: [[[6.6, 9.4], [6.6, 5.4], [9.8, 5.4], [6.6, 9.4]]] },
+    grandeurs: { nom: 'cercle', cercle: [2.6, 2.6, 1.5] },
+    donnees: { nom: 'courbe', traits: [[[0.8, 4.4], [2, 5.4], [3.2, 4.8], [4.4, 5.8]]] },
+    algo: { nom: 'flèche', traits: [[[5.2, 4], [5.2, 2.6], [4.6, 3.1]], [[5.2, 2.6], [5.8, 3.1]]] },
+    automatismes: { nom: 'éclair', traits: [[[8.6, 3.8], [7, 2.2], [8.4, 2.2], [6.8, 0.6]]] }
+  };
+  // Meilleur niveau réussi (8/10 ou plus) : 0 si aucun ; pour les exerciseurs en parties, nombre de parties réussies (3 au plus)
+  function eclat(t) {
+    let n = 0;
+    t.niveaux.forEach((lv, i) => { const b = store.get('best:' + t.id + ':' + (i + 1), null); if (b && b.s >= 0.8 * b.t) n = t.parties ? n + 1 : i + 1; });
+    return Math.min(3, n);
+  }
+  function placer(fig, n) {
+    if (fig.cercle) { const [cx, cy, r] = fig.cercle; return Array.from({ length: n }, (_, k) => [cx + r * Math.cos(Math.PI / 2 - 2 * Math.PI * k / n), cy + r * Math.sin(Math.PI / 2 - 2 * Math.PI * k / n)]); }
+    const segs = []; fig.traits.forEach((tr) => { for (let i = 0; i + 1 < tr.length; i++) segs.push([tr[i], tr[i + 1]]); });
+    const lg = segs.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1])), tot = lg.reduce((a, b) => a + b, 0);
+    const ferme = fig.traits.length === 1 && String(fig.traits[0][0]) === String(fig.traits[0][fig.traits[0].length - 1]);
+    return Array.from({ length: n }, (_, k) => {
+      let d = n === 1 ? 0 : tot * k / (ferme ? n : n - 1), i = 0;
+      while (i < segs.length - 1 && d > lg[i]) { d -= lg[i]; i++; }
+      const [a, b] = segs[i], f = lg[i] ? Math.min(1, d / lg[i]) : 0;
+      return [a[0] + f * (b[0] - a[0]), a[1] + f * (b[1] - a[1])];
+    });
+  }
+  const etoilesDe = (niveau) => DOMAINES.flatMap((d) => {
+    const lt = THEMES.filter((t) => t.classes.includes(niveau) && domaineDe(t) === d);
+    return placer(FIGURES[d.id], lt.length).map((p, k) => ({ t: lt[k], d, x: Math.round(p[0] * 10) / 10, y: Math.round(p[1] * 10) / 10, e: eclat(lt[k]) }));
+  });
+  function carteCiel(niveau) {
+    const et = etoilesDe(niveau), on = et.filter((x) => x.e).length;
+    return '<a class="card ciel-carte" href="#ciel"><svg class="ciel-ico" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10"/><path d="M10 38 20 16 34 26 40 10" /><circle cx="10" cy="38" r="3"/><circle cx="20" cy="16" r="3.5"/><circle cx="34" cy="26" r="2.5"/><circle cx="40" cy="10" r="3"/></svg>' +
+      '<span class="jeu-txt"><strong>Ma constellation</strong><span>' + on + ' étoile' + (on > 1 ? 's' : '') + ' allumée' + (on > 1 ? 's' : '') + ' sur ' + et.length + ' · une série réussie allume une étoile</span></span></a>';
+  }
+  function vueCiel() {
+    const moi = getMoi();
+    let niveau = store.get('niveau', null);
+    if (!NIVEAUX.includes(niveau)) niveau = moi ? niveauDeClasse(moi.classe) : null;
+    if (!niveau) { location.hash = ''; return; }
+    const et = etoilesDe(niveau), on = et.filter((x) => x.e).length;
+    const W = 320, H = 340, X = (x) => 24 + x * 28.5, Y = (y) => 312 - y * 29;
+    const nbr = (v) => String(v).replace('.', ',');
+    const clair = (c) => 'color-mix(in srgb, ' + c + ' 55%, white)';
+    let svg = '<svg class="ciel-svg" viewBox="0 0 ' + W + ' ' + H + '" role="group" aria-label="Constellation des exerciseurs de ' + niveau + '">' +
+      '<defs><radialGradient id="halo"><stop offset="0" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>' +
+      '<g class="repere"><line x1="' + X(0) + '" y1="' + Y(0) + '" x2="' + X(10.2) + '" y2="' + Y(0) + '"/><line x1="' + X(0) + '" y1="' + Y(0) + '" x2="' + X(0) + '" y2="' + Y(10.2) + '"/>';
+    for (let k = 1; k <= 10; k++) svg += '<line x1="' + X(k) + '" y1="' + (Y(0) - 3) + '" x2="' + X(k) + '" y2="' + (Y(0) + 3) + '"/><line x1="' + (X(0) - 3) + '" y1="' + Y(k) + '" x2="' + (X(0) + 3) + '" y2="' + Y(k) + '"/>';
+    svg += '<text x="' + (X(0) - 6) + '" y="' + (Y(0) + 14) + '">0</text><text x="' + X(1) + '" y="' + (Y(0) + 14) + '" text-anchor="middle">1</text><text x="' + (X(0) - 8) + '" y="' + (Y(1) + 4) + '" text-anchor="end">1</text></g>';
+    DOMAINES.forEach((d) => {
+      const sd = et.filter((x) => x.d === d); if (!sd.length) return;
+      const fig = FIGURES[d.id], complet = sd.every((x) => x.e), c = clair(d.c);
+      svg += '<g class="figure' + (complet ? ' complete' : '') + '" style="stroke:' + c + '">' + (fig.cercle
+        ? '<circle cx="' + X(fig.cercle[0]) + '" cy="' + Y(fig.cercle[1]) + '" r="' + fig.cercle[2] * 28.7 + '"/>'
+        : fig.traits.map((tr) => '<polyline points="' + tr.map((p) => X(p[0]) + ',' + Y(p[1])).join(' ') + '"/>').join('')) + '</g>';
+    });
+    et.forEach((s, i) => {
+      const c = clair(s.d.c), r = s.e ? 5 + 2 * s.e : 4.5;
+      svg += '<g class="etoile' + (s.e ? ' on' : '') + '" data-i="' + i + '" tabindex="0" role="button" aria-label="' + esc(s.t.titre) + ', ' + (s.e ? 'allumée' : 'pas encore allumée') + '">' +
+        (s.e ? '<circle cx="' + X(s.x) + '" cy="' + Y(s.y) + '" r="' + (r * 2.6) + '" fill="url(#halo)" opacity=".35"/>' : '') +
+        '<circle cx="' + X(s.x) + '" cy="' + Y(s.y) + '" r="13" fill="transparent"/><circle class="coeur" cx="' + X(s.x) + '" cy="' + Y(s.y) + '" r="' + r + '" fill="' + c + '"/></g>';
+    });
+    svg += '</svg>';
+    const legende = DOMAINES.filter((d) => et.some((x) => x.d === d)).map((d) => {
+      const sd = et.filter((x) => x.d === d), n = sd.filter((x) => x.e).length;
+      return '<li style="--c:' + clair(d.c) + '"><b>' + esc(d.nom) + '</b> · ' + FIGURES[d.id].nom + ' · ' + n + '/' + sd.length + (n === sd.length ? ' ✨' : '') + '</li>';
+    }).join('');
+    app.innerHTML = '<div class="wrap"><a class="btn btn-ghost back" href="#">← Accueil</a>' +
+      '<div class="ciel"><h1>Ma constellation · ' + niveau + '</h1><p class="ciel-sous">' + on + ' étoile' + (on > 1 ? 's' : '') + ' allumée' + (on > 1 ? 's' : '') + ' sur ' + et.length + '. Touche une étoile.</p>' + svg +
+      '<div class="ciel-info" id="ciel-info" aria-live="polite">Une étoile s’allume quand tu réussis une série (8/10 ou plus). Elle grossit avec les niveaux ★★ et ★★★. Quand toutes les étoiles d’un domaine sont allumées, sa figure brille.</div>' +
+      '<ul class="ciel-leg">' + legende + '</ul></div></div>';
+    const info = app.querySelector('#ciel-info');
+    const montrer = (g) => {
+      app.querySelectorAll('.etoile.choisie').forEach((x) => x.classList.remove('choisie')); g.classList.add('choisie');
+      const s = et[+g.dataset.i], t = s.t;
+      const scores = t.niveaux.map((lv, i) => { const b = store.get('best:' + t.id + ':' + (i + 1), null); return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + (t.parties ? esc(lv.court || lv.nom) : '★'.repeat(i + 1)) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>'; }).join('');
+      info.innerHTML = '<strong>' + esc(t.titre) + '</strong> <span class="ciel-coord">(' + nbr(s.x) + ' ; ' + nbr(s.y) + ')</span><div class="prog">' + scores + '</div>' +
+        '<a class="btn btn-primary" href="#ex-' + t.id + '">' + (s.e ? 'S’entraîner encore' : 'Allumer cette étoile') + '</a>';
+    };
+    app.querySelectorAll('.etoile').forEach((g) => {
+      g.onclick = () => montrer(g);
+      g.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); montrer(g); } };
+    });
   }
 
   /* =====================================================================

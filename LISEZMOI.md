@@ -213,6 +213,12 @@ Il suffit d'y copier les fichiers.
   pour la 4e et la 3e, rangez-les avec les flèches, puis « Enregistrer les conseils ». Les élèves voient la liste sur l'accueil,
   et les exerciseurs déjà réussis sont barrés.
 - Supprimer un élève dans l'espace professeur efface aussi sa ligne de l'onglet Profils.
+- **Ma constellation** (carte sur l'accueil, sous le jeu) : chaque exerciseur du niveau est une étoile placée dans un repère.
+  Elle s'allume quand l'élève réussit une série (8/10 ou plus) et grossit avec les niveaux ★★ et ★★★.
+  Les étoiles d'un domaine dessinent une figure (π pour Nombres et calculs, triangle rectangle pour la géométrie,
+  cercle pour Grandeurs et mesures, éclair pour les automatismes) qui brille quand toutes sont allumées.
+  En touchant une étoile, l'élève voit ses coordonnées, ses meilleurs scores, et peut ouvrir l'exerciseur.
+  Les étoiles se placent toutes seules quand on ajoute des exerciseurs.
 
 ## Les exerciseurs
 

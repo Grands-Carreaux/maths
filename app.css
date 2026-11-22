@@ -550,3 +550,34 @@ a.dom:hover { border-color: var(--c); }
 .cons-act .btn { min-height: 36px; padding: 0 10px; }
 .cons-ajout { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .cons-ajout select { min-height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--paper); padding: 0 8px; max-width: 100%; }
+
+/* ---------- Constellation des chapitres (toujours sur fond de nuit) ---------- */
+.ciel-carte { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin: -10px 0 22px; text-decoration: none; color: inherit; border-color: #3a3a6a; }
+.ciel-ico { width: 48px; height: 48px; flex: none; }
+.ciel-ico rect { fill: #14142b; }
+.ciel-ico path { fill: none; stroke: #8fb0ff; stroke-width: 1.5; opacity: .7; }
+.ciel-ico circle { fill: var(--soleil); }
+.ciel { background: #14142b; color: #eceaf6; border-radius: 20px; padding: 18px 14px; margin-top: 8px; }
+.ciel h1 { font-size: 22px; }
+.ciel-sous { margin: 4px 0 8px; color: #a7a3c0; font-size: 14px; }
+.ciel-svg { width: 100%; max-width: 560px; display: block; margin: 0 auto; }
+.repere line { stroke: #3a3a66; stroke-width: 1; }
+.repere text { fill: #8c88aa; font-size: 10px; font-family: var(--f-body); }
+.figure { fill: none; stroke-width: 1.4; opacity: .35; stroke-dasharray: 4 4; }
+.figure.complete { opacity: .95; stroke-width: 2.2; stroke-dasharray: none; filter: drop-shadow(0 0 4px rgba(255,255,255,.5)); }
+.etoile { cursor: pointer; outline: none; }
+.etoile .coeur { opacity: .35; transition: r .2s; }
+.etoile.on .coeur { opacity: 1; }
+.etoile.on .coeur { animation: scintille 3s ease-in-out infinite; }
+.etoile.choisie .coeur, .etoile:focus-visible .coeur { stroke: #fff; stroke-width: 2.5; opacity: 1; }
+@keyframes scintille { 50% { opacity: .75; } }
+@media (prefers-reduced-motion: reduce) { .etoile.on .coeur { animation: none; } }
+.ciel-info { margin-top: 10px; background: rgba(255,255,255,.07); border-radius: 14px; padding: 12px 14px; font-size: 14px; line-height: 1.5; display: grid; gap: 8px; justify-items: start; }
+.ciel-info strong { font-family: var(--f-head); font-size: 17px; }
+.ciel-coord { color: var(--soleil); font-variant-numeric: tabular-nums; font-weight: 700; }
+.ciel-info .pill { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.15); color: #d8d5ea; }
+.ciel-info .pill.ok { background: #143323; color: #63d394; }
+.ciel-info .pill.mid { background: #3a2b10; color: #f0b24a; }
+.ciel-info .pill.ko { background: #3b1d19; color: #ff8b78; }
+.ciel-leg { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 4px; font-size: 13px; color: #a7a3c0; }
+.ciel-leg b { color: var(--c); }
