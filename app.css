@@ -450,3 +450,7 @@ tr.coche td { background: var(--blue-soft); }
 .barre-sel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 48px; margin-bottom: 10px; }
 .barre-sel .aide-sel { color: var(--muted); font-size: 14px; }
 .barre-sel.confirm-zone { padding: 10px 14px; border-radius: 12px; background: var(--ko-bg); color: var(--ko); }
+
+/* Lien vers la page des familles, en bas de toutes les pages */
+.pied-fam { text-align: center; padding: 18px 16px 28px; font-size: .85rem; }
+.pied-fam a { color: var(--muted); }

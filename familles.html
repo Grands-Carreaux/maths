@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page pour les familles</title>
+<link rel="stylesheet" href="app.css?v=2026-11-22a">
+<style>
+  .fam h2 { margin: 28px 0 10px; font-size: 1.25rem; }
+  .fam p, .fam li { line-height: 1.55; }
+  .fam ul { padding-left: 1.2em; }
+  .fam .carte { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 18px; margin: 10px 0; }
+  .fam .oui { border-left: 5px solid var(--ok); }
+  .fam .non { border-left: 5px solid var(--margin); }
+  .fam .retour { display: inline-block; margin: 18px 0 6px; }
+</style>
+</head>
+<body>
+<main class="wrap fam">
+  <a class="btn btn-ghost retour" href="./">← Retour au site</a>
+  <h1>Page pour les familles</h1>
+  <p>Ce site d'exercices de mathématiques est proposé aux élèves de 4<sup>e</sup> et de 3<sup>e</sup> du collège Louis-Aragon (Vénissieux) par leur professeur de mathématiques. Il est gratuit, sans publicité et sans création de compte.</p>
+
+  <h2>Comment ça marche ?</h2>
+  <ul>
+    <li>L'élève indique son <strong>prénom</strong> et sa <strong>classe</strong>, puis choisit un exercice.</li>
+    <li>Chaque série compte 10 questions, avec trois niveaux de difficulté (★, ★★, ★★★). Une correction s'affiche après chaque réponse.</li>
+    <li>À la fin de la série, le score est envoyé au professeur, qui peut ainsi suivre le travail et adapter ses cours.</li>
+    <li>Le jeu « Au tableau ! » permet de s'entraîner au calcul mental ; les meilleurs scores apparaissent dans un classement.</li>
+  </ul>
+
+  <h2>Comment aider mon enfant ?</h2>
+  <ul>
+    <li><strong>Peu mais souvent</strong> : une ou deux séries de 10 minutes, plusieurs fois par semaine, valent mieux qu'une longue séance.</li>
+    <li>Commencer par le niveau ★, puis passer au suivant quand le score atteint 8/10.</li>
+    <li>Prendre un brouillon et un crayon : beaucoup de questions se préparent par écrit.</li>
+    <li>Lire la correction après une erreur, puis refaire une série : c'est ainsi qu'on progresse.</li>
+    <li>Encourager les progrès plutôt que la note : se tromper fait partie de l'apprentissage.</li>
+  </ul>
+
+  <h2>Les données de votre enfant</h2>
+  <div class="carte oui">
+    <p><strong>Ce qui est enregistré</strong></p>
+    <ul>
+      <li>le prénom (avec l'initiale du nom si deux élèves de la classe ont le même prénom) et la classe ;</li>
+      <li>pour chaque série terminée : l'exercice, le niveau, le score, la durée, le détail juste / faux de chaque question, la date ;</li>
+      <li>pour le jeu : le meilleur score de chaque mode ;</li>
+      <li>un identifiant aléatoire pour chaque résultat (il ne permet pas d'identifier l'élève).</li>
+    </ul>
+  </div>
+  <div class="carte non">
+    <p><strong>Ce qui n'est jamais demandé ni enregistré</strong></p>
+    <ul>
+      <li>le nom de famille, l'adresse e-mail, un compte ou un mot de passe ;</li>
+      <li>l'identifiant ENT ou Pronote ;</li>
+      <li>les réponses tapées par l'élève et les séries non terminées ;</li>
+      <li>aucun cookie publicitaire ni outil de suivi.</li>
+    </ul>
+  </div>
+
+  <h2>Où sont les données, qui les voit ?</h2>
+  <ul>
+    <li>Le site est hébergé par GitHub Pages ; les résultats sont rangés dans un tableau Google Sheets, sur un compte Google créé uniquement pour ce site.</li>
+    <li><strong>Seul le professeur</strong> peut consulter les résultats, grâce à un code personnel.</li>
+    <li>Le classement du jeu, visible par les élèves, affiche seulement le prénom et la classe des trois meilleurs.</li>
+    <li>Les données sont conservées jusqu'à la fin de l'année scolaire, puis effacées.</li>
+    <li>Sur l'appareil utilisé, le site garde en mémoire le prénom, la classe et une série en cours. Le bouton « Changer d'élève » efface ces informations (utile sur un appareil partagé).</li>
+  </ul>
+
+  <h2>Vos droits</h2>
+  <p>Vous pouvez demander à consulter les données de votre enfant ou à les faire supprimer, à tout moment et sans justification. L'utilisation du site n'est pas notée et reste un entraînement.</p>
+
+  <h2>Contact</h2>
+  <p>Collège Louis-Aragon — le professeur de mathématiques, par la messagerie de l'ENT.</p>
+
+  <a class="btn btn-ghost retour" href="./">← Retour au site</a>
+</main>
+</body>
+</html>

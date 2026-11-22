@@ -12,9 +12,11 @@
 
   /* ---------- Utilitaires ---------- */
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const mem = {}; // secours si le navigateur refuse la mémoire (navigation privée, navigateur de l'ENT…)
   const store = {
-    get(k, def) { try { const v = localStorage.getItem('gc:' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
-    set(k, v) { try { localStorage.setItem('gc:' + k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } }
+    get(k, def) { try { const v = localStorage.getItem('gc:' + k); if (v != null) return JSON.parse(v); } catch (e) { /* */ } return k in mem ? mem[k] : def; },
+    set(k, v) { mem[k] = v; try { localStorage.setItem('gc:' + k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+    del(k) { delete mem[k]; try { localStorage.removeItem('gc:' + k); } catch (e) { /* */ } }
   };
   // Un exerciseur organisé en « parties » (ex. automatismes) n'affiche pas d'étoiles de difficulté.
   const avecEtoiles = (t) => t.niveaux.length > 1 && !t.parties;
@@ -109,7 +111,7 @@
       iz.innerHTML = '<div class="card confirm-eleve" role="alertdialog"><p><strong>Changer d’élève ?</strong> Cet appareil va oublier « ' + esc(moi.prenom) + ' · ' + esc(moi.classe) + ' ». Tes résultats déjà envoyés sont conservés.</p>' +
         '<div class="btn-row"><button class="btn btn-primary" id="chg-oui">Oui, changer d’élève</button><button class="btn btn-ghost" id="chg-non">Annuler</button></div></div>';
       iz.querySelector('#chg-non').onclick = () => { iz.innerHTML = ''; };
-      iz.querySelector('#chg-oui').onclick = () => { try { localStorage.removeItem('gc:moi'); localStorage.removeItem('gc:niveau'); } catch (e) { /* */ } vuePortail(); };
+      iz.querySelector('#chg-oui').onclick = () => { store.del('moi'); store.del('niveau'); vuePortail(); };
     };
     const chg = app.querySelector('#chg');
     if (chg) chg.onclick = () => { iz.innerHTML = ''; iz.appendChild(formIdent(vuePortail)); iz.querySelector('input').focus(); };
@@ -193,7 +195,7 @@
     const k = cleEnCours(S.t);
     if (k) store.set(k, { lvl: S.lvl, i: S.i, n: S.n, score: S.score, serie: S.serie, meilleureSerie: S.meilleureSerie, ecoule: Date.now() - S.debut, vus: [...S.vus], cats: [...(S.cats || [])], hist: S.hist, q: S.q, repondu: S.repondu, date: Date.now() });
   }
-  function effacer(t) { const k = cleEnCours(t); try { if (k) localStorage.removeItem('gc:' + k); } catch (e) { /* */ } }
+  function effacer(t) { const k = cleEnCours(t); if (k) store.del(k); }
   function reprendre(t, e) {
     // le temps passé hors de la série n'est pas compté
     S = Object.assign({}, e, { t, vus: new Set(e.vus), cats: new Set(e.cats || []), debut: Date.now() - e.ecoule });

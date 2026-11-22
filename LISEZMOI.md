@@ -22,6 +22,7 @@ Durée d'installation : environ 20 minutes, en trois étapes (tableur Google, r�
 | `themes.js` | Les exerciseurs et leurs générateurs de questions. | Non |
 | `app.js` | Le fonctionnement du site : portail, clavier, correction, page professeur. | Non |
 | `app.css` | L'apparence : couleurs, polices, tailles. | Non |
+| `familles.html` | La page pour les parents (comment aider son enfant, données personnelles). Un lien y mène en bas de chaque page du site. | Seulement si vous voulez changer le texte |
 | `LISEZMOI.md` | Ce guide. | Non |
 
 ---
@@ -341,11 +342,14 @@ les résultats, ou son adresse changerait pour les élèves.
   Il n'y a ni compte élève, ni e-mail, ni mot de passe.
 - Elles sont stockées dans **votre** Google Drive. Le site lui-même ne garde rien sur un serveur ;
   seul le meilleur score de l'élève est gardé sur son propre appareil.
-- Informez votre chef d'établissement (et le DPO académique si votre académie le demande), ainsi que les familles.
+- Informez votre chef d'établissement (et le DPO académique si votre académie le demande), ainsi que les familles :
+  la page `familles.html` (lien en bas de chaque page) leur explique tout, avec le contact « Collège Louis-Aragon — le professeur de mathématiques, par la messagerie de l'ENT ».
 - Videz le tableur en fin d'année scolaire.
 - Le site ne charge aucune police ni aucun service externe : seul l'envoi des résultats passe par Google.
 
 ## Limites à connaître
+
+- Si le navigateur refuse la mémoire de l'appareil (navigation privée, navigateur intégré à l'ENT…), le site garde le prénom et la classe tant que la page reste ouverte ; il faudra les redonner seulement après avoir fermé ou rechargé la page.
 
 - Il n'y a pas d'authentification élève : un élève peut taper le prénom d'un autre. L'outil sert l'entraînement, pas l'évaluation notée.
 - Le code professeur se trouve dans le script Google, pas dans le site : les élèves ne peuvent pas le lire.
