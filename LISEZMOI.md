@@ -294,6 +294,15 @@ a un résultat ou un terme négatif dans les parties 1 et 2.
 
 À venir : Scratch, transformations, puissances de 10 et notation scientifique.
 
+### Nombres relatifs (4e et 3e)
+
+| Exerciseur | ★ | ★★ | ★★★ |
+|---|---|---|---|
+| Multiplier et diviser des relatifs | deux nombres : produit ou quotient (entiers, et 1 fois sur 4 un décimal simple : −2,5 × 4) | 3 ou 4 facteurs (compter les négatifs), facteur manquant : −8 × ? = 40, ? ÷ (−5) = −7 | priorités (−6 + (−4) × (−6)), deux produits, parenthèses, carrés ((−4)² et −4²), quotient (44 ÷ (2 − (−9))) |
+
+La correction rappelle la règle des signes (ou le nombre de facteurs négatifs) et détaille les étapes.
+Clavier : chiffres, signe − et virgule.
+
 ### Fractions
 
 | Exerciseur | ★ | ★★ | ★★★ |

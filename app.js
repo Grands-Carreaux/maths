@@ -17,7 +17,7 @@
     automatismes: '<path d="M13 2 5 14h6l-1 8 8-12h-6z"/>'
   };
   const DOMAINES = [
-    { id: 'nombres', nom: 'Nombres et calculs', c: '#3a5bd9', forme: '50%', sous: ['Fractions', 'Calcul littéral'] },
+    { id: 'nombres', nom: 'Nombres et calculs', c: '#3a5bd9', forme: '50%', sous: ['Nombres relatifs', 'Fractions', 'Calcul littéral'] },
     { id: 'geometrie', nom: 'Espace et géométrie', c: '#14866d', forme: '0', sous: ['Géométrie'] },
     { id: 'grandeurs', nom: 'Grandeurs et mesures', c: '#e8590c', forme: '30%', sous: [] },
     { id: 'donnees', nom: 'Données et fonctions', c: '#8338ec', forme: '12%', sous: ['Fonctions', 'Statistiques', 'Probabilités'] },
@@ -341,7 +341,8 @@
     if (!NIVEAUX.includes(niveau)) { const moi = getMoi(); niveau = moi ? niveauDeClasse(moi.classe) : null; }
     const liste = d && niveau ? THEMES.filter((t) => t.classes.includes(niveau) && domaineDe(t) === d) : [];
     if (!liste.length) { location.hash = ''; return; }
-    const chap = [...new Set(liste.map((t) => t.domaine))];
+    const rangC = (c) => (d.sous.indexOf(c) + 1 || 99);
+    const chap = [...new Set(liste.map((t) => t.domaine))].sort((a, b) => rangC(a) - rangC(b)); // ordre de la liste DOMAINES
     app.innerHTML = '<div class="wrap page-dom" ' + styleDom(d) + '><a class="btn btn-ghost back" href="#">← Tous les domaines</a>' +
       '<div class="dom-tete">' + icone(d.id) + '<div><span class="eyebrow">' + niveau + '</span><h1>' + esc(d.nom) + '</h1></div></div>' +
       chap.map((c) => '<section class="domaine">' + (chap.length > 1 || c !== d.nom ? '<h2>' + esc(c) + '</h2>' : '') + '<div class="grid">' +

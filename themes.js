@@ -822,6 +822,12 @@
   /* =====================================================================
      THÈMES
      ===================================================================== */
+  /* ---------- Nombres relatifs : multiplication et division ---------- */
+  const rr = (x) => Math.round(x * 100) / 100;                                   // évite 0,30000000000000004
+  const dfmt = (x) => (x < 0 ? M : '') + String(Math.abs(rr(x))).replace('.', ',');
+  const fa = (x, premier) => (x < 0 && !premier ? P(dfmt(x)) : dfmt(x));      // nombre dans un calcul : parenthèses si négatif (sauf en tête)
+  const signeTxt = (s, quoi, n) => (s > 0 ? 'Les deux nombres ont le même signe : ' + quoi + ' est positif.' : 'Les deux nombres sont de signes contraires : ' + quoi + ' est négatif.');
+  const relQ = (enonce, r, texte, lignes, cat) => ({ type: 'nombre', decimal: true, enonce, reponse: decQ(rr(r)), prefixe: '= ', clavier: '-,', cat, correction: { texte, lignes } });
   const THEMES = [
     /* ---------------- Automatismes du brevet ---------------- */
     {
@@ -1196,6 +1202,73 @@
             if (g === 2) return [{ s: 1, g: [fracItem(d()), fracItem(d(), -1)] }, fracItem(d(), -1)];
             return [{ s: 1, g: [fracItem(d()), fracItem(d(), -1)] }, { s: pick([1, -1]), g: [fracItem(d()), fracItem(d(), -1)] }];
           }), 'On calcule d\u2019abord ce qui est entre parenthèses, puis le reste, de gauche à droite.' + TXT_NEG);
+        } }
+      ]
+    },
+    {
+      id: 'multiplier-relatifs', classes: ['4e', '3e'], domaine: 'Nombres relatifs',
+      titre: 'Multiplier et diviser des relatifs',
+      resume: 'La règle des signes : produits, quotients, facteurs manquants, puis priorités et carrés.',
+      consigne: 'Calcule.', clavier: '-,',
+      niveaux: [
+        { nom: 'Deux nombres', gen() {
+          const div = Math.random() < 0.35, dec = Math.random() < 0.25;
+          let a, b, r;
+          if (div) { const q = dec ? pick([1.2, 2.4, 0.6, 1.5, 3.5, 0.8]) : rnd(2, 9); b = rnd(2, 9); if (dec) b = rnd(2, 5); a = rr(q * b); r = q; }
+          else if (dec) { a = pick([0.5, 1.5, 2.5, 0.2, 1.2, 0.4, 0.3, 0.7]); b = rnd(2, 9); r = rr(a * b); }
+          else { a = rnd(2, 12); b = rnd(2, 10); r = a * b; }
+          let sa, sb; do { sa = Math.random() < 0.6 ? -1 : 1; sb = Math.random() < 0.6 ? -1 : 1; } while (sa > 0 && sb > 0);
+          if (!div && Math.random() < 0.5) [a, b] = [b, a];
+          a *= sa; b *= sb; r = rr(r * sa * sb);
+          const op = div ? ' ÷ ' : ' × ', e = fa(a, true) + op + fa(b);
+          return relQ(e, r, signeTxt(sa * sb, div ? 'le quotient' : 'le produit', 2), [{ m: e + ' = ' + fa(r, true) }], div ? 'quotient' : dec ? 'decimal' : 'produit');
+        } },
+        { nom: 'Plusieurs facteurs, facteur manquant', gen() {
+          const k = pick(['prod', 'prod', 'mul-trou', 'div-trou']);
+          if (k === 'prod') {
+            const n = pick([3, 3, 4]); let f, p;
+            do { f = Array.from({ length: n }, () => pick([1, 2, 2, 3, 3, 4, 5, 6, 10]) * (Math.random() < 0.55 ? -1 : 1)); p = f.reduce((x, y) => x * y, 1); } while (Math.abs(p) > 300 || f.filter((x) => x < 0).length === 0);
+            const nn = f.filter((x) => x < 0).length, e = f.map((x, i) => fa(x, i === 0)).join(' × ');
+            return relQ(e, p, 'Il y a ' + nn + ' facteur' + (nn > 1 ? 's' : '') + ' négatif' + (nn > 1 ? 's' : '') + ' : c’est un nombre ' + (nn % 2 ? 'impair, donc le produit est négatif.' : 'pair, donc le produit est positif.') + ' Ensuite, on multiplie les distances à zéro.',
+              [{ m: e + ' = ' + (p < 0 ? M : '') + f.map((x) => Math.abs(x)).join(' × ') }, { m: '= ' + num(p) }], 'prod' + n);
+          }
+          const a = rnd(2, 9) * (Math.random() < 0.6 ? -1 : 1), x = rnd(2, 9) * (Math.random() < 0.6 ? -1 : 1), p = a * x;
+          if (k === 'mul-trou') {
+            const e = Math.random() < 0.5 ? fa(a, true) + ' × ' + TROU + ' = ' + num(p) : TROU + ' × ' + fa(a) + ' = ' + num(p);
+            return Object.assign(relQ(e, x, 'On cherche le nombre qui, multiplié par ' + num(a) + ', donne ' + num(p) + ' : on divise ' + num(p) + ' par ' + num(a) + '. ' + signeTxt(Math.sign(p) * Math.sign(a), 'le quotient', 2),
+              [{ m: '? = ' + num(p) + ' ÷ ' + fa(a) + ' = ' + num(x) }], 'mul-trou'), { prefixe: '? = ' });
+          }
+          const e = TROU + ' ÷ ' + fa(a) + ' = ' + num(x);
+          return Object.assign(relQ(e, p, 'On cherche le nombre qui, divisé par ' + num(a) + ', donne ' + num(x) + ' : on multiplie ' + num(x) + ' par ' + num(a) + '. ' + signeTxt(Math.sign(x) * Math.sign(a), 'le produit', 2),
+            [{ m: '? = ' + num(x) + ' × ' + fa(a) + ' = ' + num(p) }], 'div-trou'), { prefixe: '? = ' });
+        } },
+        { nom: 'Priorités et carrés', gen() { let q; do { q = this.calcul(); } while (!q.enonce.includes(M)); return q; }, calcul() {
+          const k = pick(['somme-prod', 'deux-prod', 'parentheses', 'carre', 'quotient']), v = (m) => rnd(2, m) * (Math.random() < 0.55 ? -1 : 1);
+          if (k === 'somme-prod') {
+            const a = v(9), b = v(6), c = v(6), p = b * c, r = a + p, e = fa(a, true) + ' + ' + fa(b) + ' × ' + fa(c);
+            return relQ(e, r, 'La multiplication est prioritaire : on la calcule d’abord.', [{ m: e }, { m: '= ' + fa(a, true) + ' + ' + fa(p) }, { m: '= ' + num(r) }], k);
+          }
+          if (k === 'deux-prod') {
+            const a = v(6), b = v(6), c = v(6), d = v(6), p = a * b, q = c * d, r = p - q, e = fa(a, true) + ' × ' + fa(b) + ' ' + M + ' ' + fa(c) + ' × ' + fa(d);
+            return relQ(e, r, 'On calcule d’abord les deux produits, puis la soustraction. Soustraire un nombre, c’est ajouter son opposé.',
+              [{ m: e }, { m: '= ' + fa(p, true) + ' ' + M + ' ' + fa(q) }, { m: '= ' + fa(p, true) + ' + ' + fa(-q) }, { m: '= ' + num(r) }], k);
+          }
+          if (k === 'parentheses') {
+            let a, b; do { a = v(9); b = v(9); } while (a + b === 0);
+            const c = v(6), s0 = a + b, r = s0 * c, e = P(fa(a, true) + ' + ' + fa(b)) + ' × ' + fa(c);
+            return relQ(e, r, 'On calcule d’abord ce qui est entre parenthèses.', [{ m: e }, { m: '= ' + fa(s0, true) + ' × ' + fa(c) }, { m: '= ' + num(r) }], k);
+          }
+          if (k === 'carre') {
+            const a = rnd(2, 6), avecPar = Math.random() < 0.5, val = avecPar ? a * a : -a * a, c = v(5), fois = Math.random() < 0.5;
+            const sq = avecPar ? P(M + a) + '<sup>2</sup>' : M + a + '<sup>2</sup>';
+            const r = fois ? val * c : val + c, e = sq + (fois ? ' × ' + fa(c) : ' + ' + fa(c));
+            return relQ(e, r, avecPar ? 'Le carré porte sur (' + M + a + ') : ' + P(M + a) + '<sup>2</sup> = ' + P(M + a) + ' × ' + P(M + a) + ' = ' + a * a + '.'
+              : 'Attention : le carré porte seulement sur ' + a + ' : ' + M + a + '<sup>2</sup> = ' + M + P(a + ' × ' + a) + ' = ' + M + a * a + '.',
+              [{ m: e }, { m: '= ' + fa(val, true) + (fois ? ' × ' + fa(c) : ' + ' + fa(c)) }, { m: '= ' + num(r) }], avecPar ? 'carre-par' : 'carre-sans');
+          }
+          let c, d; do { c = v(9); d = v(9); } while (c - d === 0 || Math.abs(c - d) > 12);
+          const den = c - d, q = v(6), n0 = q * den, e = fa(n0, true) + ' ÷ ' + P(fa(c, true) + ' ' + M + ' ' + fa(d));
+          return relQ(e, q, 'On calcule d’abord ce qui est entre parenthèses, puis la division.', [{ m: e }, { m: '= ' + fa(n0, true) + ' ÷ ' + fa(den) }, { m: '= ' + num(q) }], k);
         } }
       ]
     }
