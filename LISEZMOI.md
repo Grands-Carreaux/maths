@@ -199,6 +199,21 @@ Il suffit d'y copier les fichiers.
 
 ---
 
+## XP, niveaux et conseils du prof
+
+- **XP** : chaque série terminée rapporte 10 XP par bonne réponse, plus 20 XP si elle est réussie (8/10 ou plus).
+  Le calcul est fait par le script Google, dans l'onglet **Profils** (une ligne par élève : XP, nombre de séries,
+  dernier jour, jours d'affilée). Les XP suivent donc l'élève sur n'importe quel appareil.
+  Les séries envoyées avant la mise en place des XP sont comptées automatiquement à la première nouvelle série.
+- **Niveaux** : 10 niveaux portant le nom d'un mathématicien ou d'une mathématicienne (Hypatie, Al-Khwârizmî, Euclide,
+  Fibonacci, Descartes, Sophie Germain, Euler, Emmy Noether, Ramanujan), avec une anecdote (touchez le niveau sur l'accueil).
+  L'avatar gagne un côté à chaque niveau : triangle, carré, pentagone… et devient un cercle au niveau 10.
+- **🔥 Jours d'affilée** : nombre de jours de suite avec au moins une série terminée.
+- **Conseils du prof** : dans l'espace professeur, ouvrez « Conseils du prof », ajoutez des exerciseurs (avec leur niveau ★)
+  pour la 4e et la 3e, rangez-les avec les flèches, puis « Enregistrer les conseils ». Les élèves voient la liste sur l'accueil,
+  et les exerciseurs déjà réussis sont barrés.
+- Supprimer un élève dans l'espace professeur efface aussi sa ligne de l'onglet Profils.
+
 ## Les exerciseurs
 
 **Rangement par domaines.** Après le choix 4e / 3e, l'élève voit six tuiles de couleur : Nombres et calculs (bleu),

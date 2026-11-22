@@ -27,6 +27,82 @@
   const domaineDe = (t) => DOMAINES.find((d) => d.nom === t.domaine || d.sous.includes(t.domaine)) || DOMAINES[0];
   const icone = (id) => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + ICO[id] + '</svg>';
   const styleDom = (d) => 'style="--c:' + d.c + ';--forme:' + d.forme + '"';
+  /* ---------- XP : chaque niveau porte le nom d'un ou d'une mathématicienne ---------- */
+  const RANGS = [
+    { xp: 0, nom: 'Apprenti calculateur', txt: 'Tous les grands mathématiciens ont commencé ici : par des calculs, des erreurs et de l’entraînement.' },
+    { xp: 150, nom: 'Hypatie', txt: 'Hypatie (vers 400, Alexandrie) est l’une des premières femmes mathématiciennes connues. Elle enseignait la géométrie et l’astronomie.' },
+    { xp: 400, nom: 'Al-Khwârizmî', txt: 'Al-Khwârizmî (IXe siècle, Bagdad) : son nom a donné le mot « algorithme », et le titre de son livre le mot « algèbre ».' },
+    { xp: 800, nom: 'Euclide', txt: 'Euclide (vers 300 av. J.-C.) a écrit Les Éléments, un livre de géométrie utilisé pendant plus de 2 000 ans.' },
+    { xp: 1400, nom: 'Fibonacci', txt: 'Fibonacci (1202, Pise) a fait connaître en Europe les chiffres que nous utilisons, et le zéro.' },
+    { xp: 2200, nom: 'Descartes', txt: 'René Descartes (1596-1650) a eu l’idée de repérer les points par des coordonnées : on parle de repère « cartésien ».' },
+    { xp: 3200, nom: 'Sophie Germain', txt: 'Sophie Germain (1776-1831) étudiait en cachette et envoyait ses travaux sous un nom d’homme, « Monsieur Le Blanc ».' },
+    { xp: 4500, nom: 'Euler', txt: 'Leonhard Euler (1707-1783) a inventé la notation f(x). Devenu aveugle, il continuait à faire d’énormes calculs de tête.' },
+    { xp: 6000, nom: 'Emmy Noether', txt: 'Emmy Noether (1882-1935) a fondé l’algèbre moderne. Einstein la considérait comme un génie.' },
+    { xp: 8000, nom: 'Ramanujan', txt: 'Srinivasa Ramanujan (1887-1920), autodidacte indien, voyait des propriétés dans tous les nombres : 1729 est devenu « le nombre de Ramanujan ».' }
+  ];
+  const COUL_RANG = ['#fb5607', '#3a5bd9', '#14866d', '#8338ec', '#d6336c', '#c98a00', '#0b7285', '#e8590c', '#5f3dc4', '#e63946'];
+  const xpSerie = (score, total) => 10 * score + (score >= Math.ceil(0.8 * total) ? 20 : 0); // même calcul que le script Google
+  const rangDe = (xp) => { let i = 0; while (i + 1 < RANGS.length && xp >= RANGS[i + 1].xp) i++; return i; };
+  const cleMoi = (m) => (m.classe + '|' + m.prenom).toLowerCase();
+  const jourLocal = (d) => { d = d || new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+  // XP des séries terminées mais pas encore envoyées (hors connexion) ; les scores du jeu ne comptent pas
+  const xpEnAttente = (file, m) => file.filter((x) => x.themeId && cleMoi(x) === cleMoi(m)).reduce((a, x) => a + xpSerie(x.score, x.total), 0);
+  const getProfil = (m) => store.get('xp:' + cleMoi(m), { xp: 0, jours: 0 });
+  // L'avatar gagne un côté à chaque niveau : triangle, carré, pentagone… jusqu'au cercle au dernier niveau.
+  function avatar(xp, prenom) {
+    const r = rangDe(xp), c = COUL_RANG[r], lettre = '<text x="24" y="' + (r ? 31 : 36) + '" text-anchor="middle">' + esc(prenom.charAt(0).toUpperCase()) + '</text>';
+    if (r === RANGS.length - 1) return '<svg class="avatar" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="' + c + '"/>' + lettre + '</svg>';
+    const n = r + 3, pts = [];
+    for (let k = 0; k < n; k++) { const a = -Math.PI / 2 + (k + (n === 4 ? 0.5 : 0)) * 2 * Math.PI / n; pts.push((24 + 22 * Math.cos(a)).toFixed(1) + ',' + ((n === 3 ? 28 : 24) + 22 * Math.sin(a)).toFixed(1)); }
+    return '<svg class="avatar" viewBox="0 0 48 48" aria-hidden="true"><polygon points="' + pts.join(' ') + '" fill="' + c + '"/>' + lettre + '</svg>';
+  }
+  function htmlXP(p) {
+    const r = rangDe(p.xp), suiv = RANGS[r + 1];
+    const pct = suiv ? Math.round(100 * (p.xp - RANGS[r].xp) / (suiv.xp - RANGS[r].xp)) : 100;
+    return '<div class="xp"><button class="rang" aria-expanded="false">Niveau ' + (r + 1) + ' · <b>' + esc(RANGS[r].nom) + '</b> <span aria-hidden="true">ⓘ</span></button>' +
+      (p.jours >= 1 ? '<span class="flamme" title="Jours d’affilée avec au moins une série">🔥 ' + p.jours + ' jour' + (p.jours > 1 ? 's' : '') + '</span>' : '') +
+      '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><i style="width:' + pct + '%"></i></div>' +
+      '<small>' + p.xp + ' XP' + (suiv ? ' · prochain niveau à ' + suiv.xp + ' XP : ' + esc(suiv.nom) : ' · niveau maximum !') + '</small>' +
+      '<p class="anecdote" hidden>' + esc(RANGS[r].txt) + '</p></div>';
+  }
+  function brancherXP(root) {
+    const b = root.querySelector('.rang'); if (!b) return;
+    b.onclick = () => { const a = root.querySelector('.anecdote'); a.hidden = !a.hidden; b.setAttribute('aria-expanded', String(!a.hidden)); };
+  }
+  function majProfilAffiche() {
+    const moi = getMoi(), pr = app.querySelector('.profil');
+    if (!moi || !pr) return;
+    const p = getProfil(moi);
+    pr.querySelector('.avatar').outerHTML = avatar(p.xp, moi.prenom);
+    pr.querySelector('.xp').outerHTML = htmlXP(p); brancherXP(pr);
+  }
+  // Conseils du prof (ordre conseillé) et profil à jour, demandés au tableur à l'ouverture de l'accueil
+  let dernierAccueil = 0;
+  function chargerAccueil(apres) {
+    if (!C.urlScript || Date.now() - dernierAccueil < 30000) return;
+    dernierAccueil = Date.now();
+    const moi = getMoi();
+    fetch(C.urlScript + '?action=accueil' + (moi ? '&prenom=' + encodeURIComponent(moi.prenom) + '&classe=' + encodeURIComponent(moi.classe) : ''))
+      .then((r) => r.json()).then((j) => {
+        if (!j || !j.ok) return;
+        if (j.conseils) store.set('conseils', j.conseils);
+        if (moi && j.profil) {
+          // on ajoute les séries pas encore envoyées (hors connexion)
+          const enAttente = xpEnAttente(store.get('file', []), moi);
+          const loc = getProfil(moi);
+          store.set('xp:' + cleMoi(moi), { xp: j.profil.xp + enAttente, jours: Math.max(j.profil.jours, loc.d === jourLocal() ? loc.jours : 0), d: loc.d });
+        }
+        apres();
+      }).catch(() => { /* hors connexion : on garde ce qu'on a */ });
+  }
+  function htmlConseils(niveau) {
+    const liste = (store.get('conseils', {})[niveau] || []).map((c) => ({ t: THEMES.find((x) => x.id === c.id && x.classes.includes(niveau)), l: c.l })).filter((c) => c.t && c.t.niveaux[c.l - 1]);
+    if (!liste.length) return '';
+    return '<section class="conseils"><h2>Conseils du prof</h2><p>Les exerciseurs à faire, dans l’ordre :</p><ol>' + liste.map((c) => {
+      const b = store.get('best:' + c.t.id + ':' + c.l, null), ok = b && b.s >= 0.8 * b.t;
+      return '<li class="' + (ok ? 'fait' : '') + '"><a href="#ex-' + c.t.id + '" ' + styleDom(domaineDe(c.t)) + '>' + esc(c.t.titre) + '</a> <span class="cons-niv">' + (c.t.parties ? esc(c.t.niveaux[c.l - 1].court || c.t.niveaux[c.l - 1].nom) : '★'.repeat(c.l)) + '</span>' + (ok ? ' <span class="cons-ok">✓ réussi</span>' : '') + '</li>';
+    }).join('') + '</ol></section>';
+  }
   const reussi = (t) => t.niveaux.some((lv, i) => { const b = store.get('best:' + t.id + ':' + (i + 1), null); return b && b.s >= 0.8 * b.t; });
   const AUTRE = 'Autre';
   const app = document.getElementById('app');
@@ -120,13 +196,13 @@
       '<div class="wrap">' +
       '<header class="top"><div class="brand"><div class="logo" aria-hidden="true"></div><div><h1>' + esc(C.nomSite) + '</h1><p>Exerciseurs de mathématiques</p></div></div>' +
       '</header>' +
-      (moi ? '<section class="profil"><svg class="avatar" viewBox="0 0 48 48" aria-hidden="true"><polygon points="24,4 45,42 3,42" fill="#fb5607"/><text x="24" y="37" text-anchor="middle">' + esc(moi.prenom.charAt(0).toUpperCase()) + '</text></svg>' +
-        '<div class="profil-txt"><span>Bonjour</span><strong>' + esc(moi.prenom) + '</strong><span>' + esc(moi.classe) + '</span></div>' +
+      (moi ? '<section class="profil">' + avatar(getProfil(moi).xp, moi.prenom) +
+        '<div class="profil-txt"><span>Bonjour</span><strong>' + esc(moi.prenom) + '</strong><span>' + esc(moi.classe) + '</span></div>' + htmlXP(getProfil(moi)) +
         '<div class="profil-btns"><button class="btn btn-ghost" id="chg">Modifier</button><button class="btn btn-ghost" id="changer">Changer d’élève</button></div></section>' : '') +
       '<div id="identzone"></div>' +
       '<nav class="niveaux" aria-label="Niveau"><span class="niv-label">Ton niveau</span>' +
       NIVEAUX.map((n) => '<button class="niv" data-n="' + n + '" aria-pressed="' + (n === niveau) + '">' + n + '</button>').join('') +
-      '</nav><div id="jeuzone"></div><div id="grid"></div>' +
+      '</nav><div id="conszone">' + (niveau ? htmlConseils(niveau) : '') + '</div><div id="jeuzone"></div><div id="grid"></div>' +
       '<footer class="foot"><a class="btn btn-ghost" href="#prof">Espace professeur</a></footer></div>';
 
     const iz = app.querySelector('#identzone');
@@ -144,6 +220,8 @@
 
     app.querySelectorAll('.niv').forEach((b) => b.onclick = () => { store.set('niveau', b.dataset.n); vuePortail(); });
     if (moi) app.querySelector('#jeuzone').innerHTML = carteJeu();
+    brancherXP(app);
+    chargerAccueil(() => { majProfilAffiche(); const cz = app.querySelector('#conszone'); if (cz && niveau) cz.innerHTML = htmlConseils(niveau); });
     const grid = app.querySelector('#grid');
     if (!niveau) { grid.innerHTML = '<div class="card empty">Choisis ton niveau pour voir les exerciseurs.</div>'; return; }
     const liste = THEMES.filter((t) => t.classes.includes(niveau));
@@ -631,6 +709,17 @@
     const bonusAvant = viesBonus(), reussie = score >= Math.ceil(0.8 * n);
     if (reussie) setViesBonus(bonusAvant + 1);
     const bonusApres = viesBonus();
+    const moiB = getMoi(), gain = xpSerie(score, n);
+    let xpTxt = '';
+    if (moiB) {
+      const p0 = getProfil(moiB), auj = jourLocal(), hier = jourLocal(new Date(Date.now() - 864e5));
+      const p1 = { xp: p0.xp + gain, jours: p0.d === auj ? p0.jours || 1 : p0.d === hier ? (p0.jours || 0) + 1 : 1, d: auj };
+      store.set('xp:' + cleMoi(moiB), p1);
+      const r0 = rangDe(p0.xp), r1 = rangDe(p1.xp);
+      xpTxt = '<div class="card gain-xp' + (r1 > r0 ? ' monte' : '') + '"><strong>+' + gain + ' XP</strong>' +
+        (r1 > r0 ? '<span>Nouveau niveau ' + (r1 + 1) + ' : <b>' + esc(RANGS[r1].nom) + '</b> ! Ton avatar gagne un côté.</span><span class="anecdote">' + esc(RANGS[r1].txt) + '</span>'
+          : '<span>' + p1.xp + ' XP au total · niveau ' + (r1 + 1) + ' : ' + esc(RANGS[r1].nom) + '</span>') + '</div>';
+    }
     const duree = (Date.now() - S.debut) / 1000;
     const cle = 'best:' + t.id + ':' + lvl;
     const best = store.get(cle, null);
@@ -650,7 +739,7 @@
       '<span class="eyebrow">' + esc(t.titre) + ' · ' + (avecEtoiles(t) ? stars(lvl) + ' ' : '') + esc(t.niveaux[lvl - 1].nom) + '</span>' +
       '<div class="big">' + score + '<small>/' + n + '</small></div><h1>' + titre + '</h1>' +
       '<div class="stats"><div class="card stat"><b>' + fmtDuree(duree) + '</b><span>Temps</span></div><div class="card stat"><b>' + S.meilleureSerie + '</b><span>Meilleure série</span></div></div>' +
-      '<p class="send" id="send">' + (C.urlScript ? 'Envoi du résultat à ton professeur…' : 'Mode démonstration : le résultat n’est pas envoyé.') + '</p>' +
+      xpTxt + '<p class="send" id="send">' + (C.urlScript ? 'Envoi du résultat à ton professeur…' : 'Mode démonstration : le résultat n’est pas envoyé.') + '</p>' +
       '<a class="card gain" href="#jeu"><span class="jeu-icone">' + ICONE_JEU + '</span><span class="jeu-txt"><strong>' +
         (bonusApres > bonusAvant ? 'Bravo, 8/10 ou plus : +1 vie pour ' + JEU.nom + ' !' : reussie ? 'Réserve de vies bonus pleine !' : JEU.nom) + '</strong>' +
         '<span>' + (reussie ? 'Ta prochaine partie : ' + txtVies(bonusApres) + '.' : 'Fais 8/10 ou plus pour gagner une vie bonus. Tu peux quand même jouer !') + '</span></span>' + pastilles(bonusApres) + '</a>' +
@@ -701,7 +790,10 @@
         try {
           const rep = await fetch(C.urlScript, { method: 'POST', body: JSON.stringify(r) });
           const j = await rep.json();
-          if (j && j.ok) { file = file.filter((x) => x.id !== r.id); store.set('file', file); }
+          if (j && j.ok) {
+            file = file.filter((x) => x.id !== r.id); store.set('file', file);
+            if (j.profil) { const k = 'xp:' + cleMoi(r), loc = store.get(k, {}); store.set(k, { xp: j.profil.xp + xpEnAttente(file, r), jours: j.profil.jours, d: loc.d || jourLocal() }); }
+          }
         } catch (e) { break; }
       }
       return file.length ? 'attente' : 'ok';
@@ -712,7 +804,7 @@
   /* =====================================================================
      ESPACE PROFESSEUR
      ===================================================================== */
-  let donneesProf = null, donneesJeu = [];
+  let donneesProf = null, donneesJeu = [], consProf = { '4e': [], '3e': [] };
   function vueProf() {
     app.innerHTML = '<div class="wrap prof"><a class="btn btn-ghost back" href="#">← Portail élèves</a><h1>Espace professeur</h1>' +
       '<p class="lead">Résultats envoyés par les élèves à la fin de chaque série.</p><div id="pz"></div></div>';
@@ -744,6 +836,7 @@
       if (!j.ok) { try { sessionStorage.removeItem('gc:cle'); } catch (e) { /* */ } return formCle(pz, j.erreur === 'cle' ? 'Code incorrect.' : 'Erreur : ' + (j.erreur || 'inconnue')); }
       try { sessionStorage.setItem('gc:cle', cle); } catch (e) { /* */ }
       donneesProf = j.lignes.map((l) => Object.assign(l, { t: new Date(l.date).getTime(), cleEleve: (l.classe + '|' + l.prenom).toLowerCase() }));
+      consProf = { '4e': [], '3e': [], ...(j.conseils || {}) };
       donneesJeu = (j.jeu || []).map((l) => Object.assign(l, { t: new Date(l.date).getTime(), cleEleve: (l.classe + '|' + l.prenom).toLowerCase() }));
       rendreProf(pz);
     } catch (e) {
@@ -771,7 +864,9 @@
       '<label class="field">Période' + sel('f-periode', [['1', 'Aujourd’hui'], ['7', '7 derniers jours'], ['30', '30 derniers jours'], ['', 'Depuis le début']], F.periode) + '</label>' +
       '<label class="field">Élève<input id="f-q" placeholder="Rechercher un prénom" value="' + esc(F.q) + '"></label>' +
       '</div><div class="btn-row"><button class="btn" id="reload">Actualiser</button><button class="btn btn-ghost" id="logout">Se déconnecter</button></div></div>' +
+      '<details class="card panel cons-ed"><summary>Conseils du prof : l’ordre des exerciseurs conseillé aux élèves</summary><div id="cons-body"></div></details>' +
       '<div id="res"></div>';
+    editeurConseils(pz.querySelector('#cons-body'));
     const maj = () => {
       F.classe = pz.querySelector('#f-classe').value; F.theme = pz.querySelector('#f-theme').value;
       F.periode = pz.querySelector('#f-periode').value; F.q = pz.querySelector('#f-q').value.trim().toLowerCase();
@@ -782,6 +877,44 @@
     pz.querySelector('#reload').onclick = () => { let c = ''; try { c = sessionStorage.getItem('gc:cle'); } catch (e) { /* */ } chargerProf(pz, c); };
     pz.querySelector('#logout').onclick = () => { try { sessionStorage.removeItem('gc:cle'); } catch (e) { /* */ } donneesProf = null; formCle(pz); };
     maj();
+  }
+
+  /* Conseils du prof : liste ordonnée par niveau, affichée sur l'accueil des élèves */
+  function editeurConseils(el, msg) {
+    const nomNiv = (t, l) => (t.parties ? (t.niveaux[l - 1].court || t.niveaux[l - 1].nom) : '★'.repeat(l));
+    el.innerHTML = '<p class="lead">Les élèves voient cette liste sur l’accueil, sous le choix 4e / 3e. Changez l’ordre avec les flèches, puis enregistrez.</p>' +
+      NIVEAUX.map((niv) => {
+        const dispo = THEMES.filter((t) => t.classes.includes(niv));
+        return '<div class="cons-niv-bloc"><h3>' + niv + '</h3><ol class="cons-liste">' + (consProf[niv] || []).map((c, i) => {
+          const t = THEMES.find((x) => x.id === c.id);
+          return '<li><span>' + (t ? esc(t.titre) + ' · ' + esc(nomNiv(t, c.l)) : esc(c.id) + ' (exerciseur introuvable)') + '</span><span class="cons-act">' +
+            '<button class="btn btn-ghost" data-a="haut" data-n="' + niv + '" data-i="' + i + '" aria-label="Monter"' + (i ? '' : ' disabled') + '>↑</button>' +
+            '<button class="btn btn-ghost" data-a="bas" data-n="' + niv + '" data-i="' + i + '" aria-label="Descendre"' + (i < consProf[niv].length - 1 ? '' : ' disabled') + '>↓</button>' +
+            '<button class="btn btn-ghost" data-a="suppr" data-n="' + niv + '" data-i="' + i + '" aria-label="Retirer">✕</button></span></li>';
+        }).join('') + '</ol><div class="cons-ajout"><select data-t="' + niv + '">' + dispo.map((t) => '<option value="' + t.id + '">' + esc(t.titre) + '</option>').join('') + '</select>' +
+          '<select data-l="' + niv + '"></select><button class="btn" data-a="ajout" data-n="' + niv + '">Ajouter</button></div></div>';
+      }).join('') +
+      '<div class="btn-row"><button class="btn btn-primary" id="cons-ok">Enregistrer les conseils</button></div>' + (msg ? '<p class="send ' + msg[0] + '">' + esc(msg[1]) + '</p>' : '');
+    const remplirNiveaux = (niv) => {
+      const t = THEMES.find((x) => x.id === el.querySelector('[data-t="' + niv + '"]').value);
+      el.querySelector('[data-l="' + niv + '"]').innerHTML = t.niveaux.map((lv, i) => '<option value="' + (i + 1) + '">' + esc(nomNiv(t, i + 1)) + '</option>').join('');
+    };
+    NIVEAUX.forEach((niv) => { remplirNiveaux(niv); el.querySelector('[data-t="' + niv + '"]').onchange = () => remplirNiveaux(niv); });
+    el.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => {
+      const niv = b.dataset.n, L = consProf[niv] = consProf[niv] || [], i = +b.dataset.i;
+      if (b.dataset.a === 'ajout') L.push({ id: el.querySelector('[data-t="' + niv + '"]').value, l: +el.querySelector('[data-l="' + niv + '"]').value });
+      else if (b.dataset.a === 'suppr') L.splice(i, 1);
+      else { const j = b.dataset.a === 'haut' ? i - 1 : i + 1; [L[i], L[j]] = [L[j], L[i]]; }
+      editeurConseils(el, ['wait', 'Modifications non enregistrées.']);
+    });
+    el.querySelector('#cons-ok').onclick = async () => {
+      let cle = ''; try { cle = sessionStorage.getItem('gc:cle') || ''; } catch (e) { /* */ }
+      try {
+        const j = await (await fetch(C.urlScript, { method: 'POST', body: JSON.stringify({ action: 'conseils', cle, conseils: consProf }) })).json();
+        if (j.ok) { consProf = Object.assign({ '4e': [], '3e': [] }, j.conseils); store.set('conseils', consProf); editeurConseils(el, ['ok', 'Conseils enregistrés : les élèves les voient sur l’accueil.']); }
+        else editeurConseils(el, ['wait', j.erreur === 'cle' ? 'Code refusé : reconnectez-vous.' : 'Erreur : ' + (j.erreur || 'inconnue') + '. Le script Google est-il à jour ?']);
+      } catch (e) { editeurConseils(el, ['wait', 'Impossible de joindre le tableur.']); }
+    };
   }
 
   // Tri (clic sur un titre de colonne) et sélection (cases à cocher) propres à chaque onglet
