@@ -161,11 +161,18 @@ Il suffit d'y copier les fichiers.
 - **Calculs encadrés en jaune** (environ un nombre sur huit) : 0,5 + 0,5 ; 4 × 2,5 ; 1,6 − 0,6… Résultat entier attrapé : +30 ;
   résultat décimal attrapé : une vie perdue. Ils tombent plus lentement, pour laisser le temps de calculer.
 - **Combo** : 5 bonnes prises d'affilée rapportent +20 points (jauge à côté du score). Le combo repart à zéro quand on perd une vie.
-- Toutes les 40 secondes environ, un **bonus** de 10 secondes change la règle : « attrape les fractions dont le quotient
-  est un entier » ou « attrape les multiples de 5 » (+30 points ; une mauvaise prise coûte une vie). La nouvelle règle
-  s'affiche en grand avec un compte à rebours « 3, 2, 1 », et les nombres tombent plus lentement pendant le bonus.
+- **La craie s'use** : une jauge « Craie » se vide en 16 secondes environ et se recharge à chaque bonne prise.
+  Si elle est vide, l'élève perd une vie. Rester sur le côté sans rien attraper ne marche donc plus.
+- **Bonus** : le premier arrive à 20 secondes, puis un bonus de 12 secondes toutes les 27 secondes environ, tiré au hasard
+  (jamais deux fois le même d'affilée). Pendant un bonus, les **points sont doublés** (+40 par bonne prise) et les nombres
+  tombent à 85 % de la vitesse du moment. À la fin, un bilan s'affiche (« Bonus : 5 attrapés sur 7 ») ; tout bon : +50.
+  Bonus possibles : nombres pairs, impairs, multiples de 5, nombres plus grands que 50 (dès le début) ; puis fractions dont
+  le quotient est un entier, multiples de 3, « que des calculs » (après 1 minute) ; puis multiples de 9 et **règle inversée**
+  (attrape les décimaux, évite les entiers) (après 1 min 40).
+- **Annonces** : la nouvelle règle reste affichée 3 secondes (l'élève peut toucher l'écran pour passer), puis « 3, 2, 1 ».
+  Le retour à la règle normale est annoncé plus rapidement.
 - **Mode expert**, débloqué à 300 points en mode normal : la règle change toutes les 15 secondes
-  (nombres premiers, multiples de 3, de 5 ou de 10), avec la même annonce en grand.
+  (nombres premiers, multiples de 3, 5, 9 ou 10, plus grands que 50, règle inversée, que des calculs).
 - **Classement** : chaque élève voit son record, le podium de sa classe et le podium de tout le collège (les 3 meilleurs),
   séparément pour le mode normal et le mode expert, sur toute l'année.
 - **Un seul score par élève** dans le tableur (onglet « Jeu ») : son meilleur score, pour chaque mode. Une nouvelle partie

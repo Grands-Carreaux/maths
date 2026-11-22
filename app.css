@@ -581,3 +581,11 @@ a.dom:hover { border-color: var(--c); }
 .ciel-info .pill.ko { background: #3b1d19; color: #ff8b78; }
 .ciel-leg { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 4px; font-size: 13px; color: #a7a3c0; }
 .ciel-leg b { color: var(--c); }
+
+/* ---------- Jeu : jauge de craie ---------- */
+.craie-jauge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #f4f1e4; margin-right: 8px; }
+.craie-jauge b { display: block; width: 64px; height: 10px; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; }
+.craie-jauge i { display: block; height: 100%; width: 100%; background: #f4f1e4; border-radius: 99px; transition: width .2s linear; }
+.craie-jauge.bas i { background: #ff8a80; animation: clignote .6s steps(2) infinite; }
+@keyframes clignote { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .craie-jauge.bas i { animation: none; } }

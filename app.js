@@ -1178,7 +1178,9 @@
     app.innerHTML = '<div class="wrap jeu-page"><a class="btn btn-ghost back" href="#">← Retour aux exerciseurs</a>' +
       '<div class="thead"><span class="eyebrow">Jeu</span><h1>' + JEU.nom + '</h1>' +
       '<p>Déplace ta craie avec les flèches ◀ ▶ (ou celles du clavier). <strong>Attrape les nombres entiers</strong>, évite les nombres décimaux. Les nombres tombent de plus en plus vite, et tu as 3 vies, plus tes vies bonus.</p>' +
-      '<p>Les <strong>calculs encadrés en jaune</strong> rapportent +30 si leur résultat est un entier. <strong>5 bonnes prises d’affilée</strong> : combo, +20. De temps en temps, un <strong>bonus</strong> change la règle : elle s’affiche en grand avant de commencer.</p></div>' +
+      '<p>Les <strong>calculs encadrés en jaune</strong> rapportent +30 si leur résultat est un entier. <strong>5 bonnes prises d’affilée</strong> : combo, +20.</p>' +
+      '<p><strong>Ta craie s’use</strong> : chaque bonne prise la recharge. Si elle est vide, tu perds une vie. Impossible de gagner en restant sur le côté !</p>' +
+      '<p>Régulièrement, un <strong>bonus</strong> change la règle (nombres pairs, multiples de 9, règle inversée, que des calculs…) et <strong>double les points</strong>. Tout bon : +50. La règle s’affiche en grand avant de commencer ; touche l’écran quand tu l’as lue.</p></div>' +
       '<div class="card jeu-panneau"><div class="jeu-ligne"><span>Vies pour ta prochaine partie : <strong>' + txtVies(b) + '</strong></span>' + pastilles(b) + '</div>' +
       '<div class="jeu-ligne"><span>Ton record</span><strong>' + record('normal') + ' pts</strong></div>' +
       (exp ? '<div class="jeu-ligne"><span>Ton record en mode expert</span><strong>' + record('expert') + ' pts</strong></div>' : '') +
@@ -1224,14 +1226,14 @@
         const ent = rint(0, 49), dec = Math.random() < 0.6 ? rint(1, 9) / 10 : rint(1, 99) / 100, x = Math.round((ent + dec) * 100) / 100;
         return { txt: ecrire(Math.random() < 0.15 ? -x : x), bon: Number.isInteger(x) };
       } },
-    fractions: { bandeau: 'BONUS : attrape les fractions dont le quotient est un entier', pts: 30, bonus: true,
+    fractions: { bandeau: 'BONUS : attrape les fractions dont le quotient est un entier', pts: 20, bonus: true,
       gen() {
         const b = rint(2, 9);
         if (Math.random() < 0.5) return { frac: [b * rint(1, 9), b], bon: true };
         let a; do { a = rint(1, 9 * b); } while (a % b === 0);
         return { frac: [a, b], bon: false };
       } },
-    multiples5: { bandeau: 'BONUS : attrape les multiples de 5', pts: 30, bonus: true,
+    multiples5: { bandeau: 'BONUS : attrape les multiples de 5', pts: 20, bonus: true,
       gen() { const n = Math.random() < 0.45 ? 5 * rint(1, 20) : (() => { let x; do { x = rint(1, 100); } while (x % 5 === 0); return x; })(); return { txt: String(n), bon: n % 5 === 0 }; } },
     premiers: { bandeau: 'Attrape les nombres premiers', pts: 20,
       gen() { let n; const veut = Math.random() < 0.45; do { n = rint(2, 100); } while (estPremier(n) !== veut); return { txt: String(n), bon: veut }; } },
@@ -1242,6 +1244,27 @@
     multiples10: { bandeau: 'Attrape les multiples de 10', pts: 20,
       gen() { let n; const veut = Math.random() < 0.45; do { n = rint(2, 120); } while ((n % 10 === 0) !== veut); return { txt: String(n), bon: veut }; } }
   };
+  // Règles qui servent à la fois de bonus (mode normal, points doublés) et de règle du mode expert (clé + 'E')
+  const tirer = (test, min, max) => { let n; const veut = Math.random() < 0.45; do { n = rint(min, max); } while (test(n) !== veut); return { txt: String(n), bon: veut }; };
+  const NOUVELLES = {
+    pairs: ['attrape les nombres pairs', () => tirer((n) => n % 2 === 0, 1, 99)],
+    impairs: ['attrape les nombres impairs', () => tirer((n) => n % 2 === 1, 1, 99)],
+    multiples3b: ['attrape les multiples de 3', () => tirer((n) => n % 3 === 0, 2, 99)],
+    multiples9: ['attrape les multiples de 9', () => tirer((n) => n % 9 === 0, 2, 120)],
+    sup50: ['attrape les nombres plus grands que 50', () => {
+      if (Math.random() < 0.35) { const p = Math.random() < 0.5 ? 10 : 100, x = Math.round((49 + Math.random() * 2) * p) / p; const y = x === 50 ? 50.1 : x; return { txt: ecrire(y), bon: y > 50 }; }
+      const n = rint(20, 80); return { txt: String(n), bon: n > 50 };
+    }],
+    inverse: ['règle inversée ! Attrape les décimaux, évite les entiers', () => { const g = REGLES.base.gen(); return { txt: g.txt, bon: !g.bon }; }],
+    calculs: ['que des calculs ! Attrape ceux dont le résultat est un entier', () => genCalcul()]
+  };
+  Object.keys(NOUVELLES).forEach((k) => {
+    const [txt, gen] = NOUVELLES[k];
+    REGLES[k] = { bandeau: 'BONUS : ' + txt, pts: 20, bonus: true, gen };
+    REGLES[k + 'E'] = { bandeau: txt.charAt(0).toUpperCase() + txt.slice(1), pts: 20, gen };
+  });
+  // Bonus du mode normal : de plus en plus variés au fil de la partie (secondes de jeu → bonus possibles)
+  const BONUS_PAR_TEMPS = [[0, ['pairs', 'impairs', 'multiples5', 'sup50']], [60, ['fractions', 'multiples3b', 'calculs']], [100, ['multiples9', 'inverse']]];
 
   // Tuile « calcul » : petit calcul avec des décimaux, résultat entier une fois sur deux.
   function genCalcul() {
@@ -1273,7 +1296,7 @@
     document.body.classList.add('en-jeu');
     app.innerHTML = '<div class="jeu-play">' +
       '<div class="bar"><button class="iconbtn" id="j-quit" aria-label="Arrêter la partie">✕</button><span class="vies" id="vies"></span>' +
-      '<span class="combo" id="combo" aria-label="Combo"><i></i><i></i><i></i><i></i><i></i></span><span class="jeu-score" id="jscore">0</span></div>' +
+      '<span class="craie-jauge" id="craie" title="Ta craie s’use : attrape des bons nombres pour la recharger"><span>Craie</span><b><i></i></b></span><span class="combo" id="combo" aria-label="Combo"><i></i><i></i><i></i><i></i><i></i></span><span class="jeu-score" id="jscore">0</span></div>' +
       '<div class="jeu-bandeau" id="bandeau"><span id="bandeau-txt"></span><i id="bandeau-temps"></i></div>' +
       '<div class="jeu-cadre" id="cadre"><canvas id="cv"></canvas></div>' +
       '<div class="jeu-ctrl"><button class="key" id="j-g" aria-label="Aller à gauche">◀</button><button class="key" id="j-d" aria-label="Aller à droite">▶</button></div></div>';
@@ -1299,26 +1322,48 @@
     let items = [], effets = [], t = 0, tJeu = 0, score = 0, vies = viesDepart, prochain = 0.6, fini = false, raf = 0, dernier = performance.now();
     let gauche = false, droite = false, cible = null, regle = 'base', finPhase = 0, combo = 0;
     // Annonce d'une règle : texte en gros, puis 3, 2, 1. Pendant l'annonce, rien ne tombe et le temps de jeu est arrêté.
-    const DUREE_ANNONCE = 1.6, DUREE_DECOMPTE = 2.1;
-    let annonce = DUREE_ANNONCE + DUREE_DECOMPTE, premiere = true;
-    // Mode normal : bonus de 10 s toutes les 40 s environ (à partir de 25 s). Mode expert : règle changée toutes les 15 s.
-    const ordreExpert = ['premiers', 'multiples3', 'multiples5e', 'multiples10'].sort(() => Math.random() - 0.5);
-    let iExpert = 0, prochainBonus = 25, typeBonus = Math.random() < 0.5 ? 'fractions' : 'multiples5';
+    // 3 s pour lire la règle (on peut toucher l'écran pour passer), puis 3, 2, 1. Retour à la règle normale : plus court.
+    const LECTURE = 3, DECOMPTE = 3, LECTURE_RETOUR = 1.5, DECOMPTE_RETOUR = 1.5;
+    let decompte = DECOMPTE, annonce = LECTURE + DECOMPTE, premiere = true, bilanBonus = '';
+    // Mode normal : bonus de 12 s, avec 15 s de règle normale entre deux bonus (premier bonus à 20 s). Mode expert : règle changée toutes les 15 s.
+    const DUREE_BONUS = 12;
+    const ordreExpert = ['premiers', 'multiples3', 'multiples5e', 'multiples10', 'multiples9E', 'sup50E', 'inverseE', 'calculsE'].sort(() => Math.random() - 0.5);
+    let iExpert = 0, prochainBonus = 20, dernierBonus = '';
+    const choisirBonus = () => {
+      const pool = BONUS_PAR_TEMPS.filter(([t0]) => tJeu >= t0).flatMap(([, l]) => l).filter((k) => k !== dernierBonus);
+      dernierBonus = pool[Math.floor(Math.random() * pool.length)]; return dernierBonus;
+    };
+    // Craie : elle s'use avec le temps et se recharge à chaque bonne prise. Vide → une vie perdue.
+    const USURE = 1 / 16, RECHARGE = 0.3;
+    let craie = 1, bonusPris = 0, bonusVus = 0;
     if (mode === 'expert') { regle = ordreExpert[0]; finPhase = 15; }
     const majBandeau = () => {
       const R = REGLES[regle];
-      app.querySelector('#bandeau-txt').textContent = R.bandeau + ' (+' + R.pts + ')';
+      app.querySelector('#bandeau-txt').textContent = R.bandeau + ' (+' + (R.bonus ? 2 * R.pts + ', points doublés' : R.pts) + ')';
       app.querySelector('#bandeau').className = 'jeu-bandeau' + (R.bonus ? ' bonus' : '') + (mode === 'expert' ? ' expert' : '');
     };
     const majVies = () => { app.querySelector('#vies').innerHTML = Array.from({ length: viesDepart }, (_, i) => '<i class="' + (i < vies ? 'on' : '') + (i >= JEU.viesBase ? ' bonus' : '') + '"></i>').join(''); };
     const majCombo = () => { app.querySelectorAll('#combo i').forEach((el, i) => el.classList.toggle('on', i < combo % 5)); };
     majBandeau(); majVies(); majCombo();
-    const changerRegle = (r, duree) => { regle = r; finPhase = tJeu + duree; items = []; annonce = DUREE_ANNONCE + DUREE_DECOMPTE; majBandeau(); };
+    const changerRegle = (r, duree) => {
+      if (enBonus() && mode === 'normal') {
+        bilanBonus = 'Bonus : ' + bonusPris + ' attrapé' + (bonusPris > 1 ? 's' : '') + ' sur ' + bonusVus;
+        if (bonusVus >= 3 && bonusPris === bonusVus) { score += 50; bilanBonus += ' · Parfait ! +50'; app.querySelector('#jscore').textContent = score; }
+      } else bilanBonus = '';
+      bonusPris = 0; bonusVus = 0;
+      regle = r; finPhase = tJeu + duree; items = [];
+      const retour = r === 'base' && mode === 'normal';
+      decompte = retour ? DECOMPTE_RETOUR : DECOMPTE; annonce = (retour ? LECTURE_RETOUR : LECTURE) + decompte; majBandeau();
+    };
+    const passerLecture = () => { if (annonce > decompte) annonce = decompte; };
+    const majCraie = () => { const el = app.querySelector('#craie i'); if (!el) return; el.style.width = Math.round(craie * 100) + '%'; app.querySelector('#craie').classList.toggle('bas', craie < 0.3); };
+    majCraie();
     const enBonus = () => !!REGLES[regle].bonus;
 
     function apparaitre() {
       let g = REGLES[regle].gen(), pts = REGLES[regle].pts, calcul = false;
       if (regle === 'base' && mode === 'normal' && Math.random() < 1 / 8) { g = genCalcul(); pts = 30; calcul = true; }
+      if (g.calc) calcul = true;
       const taillePolice = Math.round((calcul ? 22 : 30) * echelle());
       cx.font = '700 ' + taillePolice + 'px ' + POLICE;
       const txt = g.calc || g.txt;
@@ -1378,7 +1423,8 @@
       });
       if (annonce > 0) {
         cx.fillStyle = 'rgba(15, 30, 24, .78)'; cx.fillRect(0, 0, W, H);
-        const R = REGLES[regle], titre = premiere ? (mode === 'expert' ? 'Mode expert' : 'C’est parti !') : R.bonus ? 'BONUS !' : mode === 'expert' ? 'Nouvelle règle !' : 'Retour à la règle normale';
+        const R = REGLES[regle], titre = premiere ? (mode === 'expert' ? 'Mode expert' : 'C’est parti !') : R.bonus ? 'BONUS ×2 !' : mode === 'expert' ? 'Nouvelle règle !' : 'Retour à la règle normale';
+        if (bilanBonus) ecrireCraie(bilanBonus, W / 2, H * 0.13, Math.round(20 * echelle()), T.vert);
         ecrireCraie(titre, W / 2, H * 0.24, Math.round(28 * echelle()), R.bonus ? T.jaune : T.bleu);
         // règle en gros, sur plusieurs lignes si besoin
         const regleTxt = R.bandeau.replace(/^BONUS : /, ''), tp = Math.round(30 * echelle());
@@ -1387,11 +1433,11 @@
         mots.forEach((m) => { const essai = l ? l + ' ' + m : m; if (cx.measureText(essai).width > W * 0.86 && l) { lignes.push(l); l = m; } else l = essai; });
         lignes.push(l);
         lignes.forEach((li, i) => ecrireCraie(li, W / 2, H * 0.38 + i * tp * 1.25, tp, T.craie));
-        ecrireCraie('+' + R.pts + ' par bonne prise', W / 2, H * 0.38 + lignes.length * tp * 1.25 + 10, Math.round(18 * echelle()), T.vert);
-        if (annonce <= DUREE_DECOMPTE) {
-          const n = Math.ceil(annonce / (DUREE_DECOMPTE / 3));
+        ecrireCraie('+' + (R.bonus ? 2 * R.pts : R.pts) + ' par bonne prise', W / 2, H * 0.38 + lignes.length * tp * 1.25 + 10, Math.round(18 * echelle()), T.vert);
+        if (annonce <= decompte) {
+          const n = Math.ceil(annonce / (decompte / 3));
           ecrireCraie(String(n), W / 2, H * 0.74, Math.round(64 * echelle()), T.jaune);
-        }
+        } else ecrireCraie('Touche l’écran quand tu as lu', W / 2, H * 0.9, Math.round(15 * echelle()), T.bleu);
       }
     }
     function etape(now) {
@@ -1403,11 +1449,11 @@
       if (annonce <= 0) {
         if (mode === 'expert' && tJeu >= finPhase) { iExpert = (iExpert + 1) % ordreExpert.length; changerRegle(ordreExpert[iExpert], 15); }
         if (mode === 'normal') {
-          if (regle === 'base' && tJeu >= prochainBonus) { changerRegle(typeBonus, 10); typeBonus = typeBonus === 'fractions' ? 'multiples5' : 'fractions'; prochainBonus = tJeu + 10 + 30; }
+          if (regle === 'base' && tJeu >= prochainBonus) { changerRegle(choisirBonus(), DUREE_BONUS); prochainBonus = tJeu + DUREE_BONUS + 15; }
           else if (regle !== 'base' && tJeu >= finPhase) changerRegle('base', 0);
         }
       }
-      const reste = enBonus() || mode === 'expert' ? Math.max(0, finPhase - tJeu) / (mode === 'expert' ? 15 : 10) : 0;
+      const reste = enBonus() || mode === 'expert' ? Math.max(0, finPhase - tJeu) / (mode === 'expert' ? 15 : DUREE_BONUS) : 0;
       app.querySelector('#bandeau-temps').style.width = (reste * 100) + '%';
       // déplacement du personnage
       const vJ = W * 1.15;
@@ -1415,7 +1461,17 @@
       if (cible != null && !gauche && !droite) { const d = cible - J.x; J.x += Math.sign(d) * Math.min(Math.abs(d), vJ * dt); }
       J.x = Math.max(J.w / 2, Math.min(W - J.w / 2, J.x));
       // pluie : accélération douce (vitesse maximale vers 3 minutes), plus lente pendant les bonus
-      const lent = enBonus() ? 0.6 : 1;
+      const lent = enBonus() ? 0.85 : 1;
+      // usure de la craie (pas pendant les annonces)
+      if (annonce <= 0) {
+        craie -= USURE * dt;
+        if (craie <= 0) {
+          craie = 1; vies--; combo = 0; majVies(); majCombo(); visage = 'triste'; effetVisage = 0.8;
+          effets.push({ txt: 'Craie usée ! −1 vie', x: W / 2, y: H * 0.45, c: T.rouge, v: 1.6, gros: true });
+          cadre.classList.remove('choc'); void cadre.offsetWidth; cadre.classList.add('choc');
+        }
+        majCraie();
+      }
       const vitesse = Math.min(400, 110 + 1.6 * tJeu) * echelle() * lent;
       if (annonce <= 0) { prochain -= dt; if (prochain <= 0) { apparaitre(); prochain = Math.max(0.5, 1.2 - tJeu * 0.004) / lent; } }
       const py = H - REBORD - J.h;
@@ -1423,8 +1479,10 @@
       items = items.filter((it) => {
         if (it.y + it.h / 2 >= py && it.y - it.h / 2 <= py + J.h && Math.abs(it.x - J.x) < (J.w + it.w) / 2 * 0.9) {
           if (it.bon) {
-            score += it.pts; combo++;
-            effets.push({ txt: '+' + it.pts, x: it.x, y: py - 12, c: T.vert, v: 1 });
+            const gain = enBonus() ? 2 * it.pts : it.pts;
+            score += gain; combo++; craie = Math.min(1, craie + RECHARGE);
+            if (enBonus()) { bonusPris++; bonusVus++; }
+            effets.push({ txt: '+' + gain, x: it.x, y: py - 12, c: T.vert, v: 1 });
             if (combo % 5 === 0) { score += 20; effets.push({ txt: 'Combo ! +20', x: W / 2, y: H * 0.42, c: T.jaune, v: 1.4, gros: true }); }
           } else {
             vies--; combo = 0; majVies(); visage = 'triste'; effetVisage = 0.8;
@@ -1434,7 +1492,9 @@
           majCombo(); app.querySelector('#jscore').textContent = score;
           return false;
         }
-        return it.y - it.h / 2 < H;
+        const dedans = it.y - it.h / 2 < H;
+        if (!dedans && it.bon && enBonus()) bonusVus++; // bon nombre laissé passer pendant un bonus
+        return dedans;
       });
       effets.forEach((e) => { e.y -= (e.gros ? 15 : 40) * dt; e.v -= dt * 1.1; }); effets = effets.filter((e) => e.v > 0);
       dessiner();
@@ -1442,7 +1502,7 @@
       raf = requestAnimationFrame(etape);
     }
     // commandes : flèches du clavier, flèches tactiles (maintenir), ou glisser le doigt sur le tableau
-    const kd = (e) => { if (e.key === 'ArrowLeft') { gauche = true; e.preventDefault(); } if (e.key === 'ArrowRight') { droite = true; e.preventDefault(); } };
+    const kd = (e) => { if ((e.key === ' ' || e.key === 'Enter') && annonce > decompte) { passerLecture(); e.preventDefault(); } if (e.key === 'ArrowLeft') { gauche = true; e.preventDefault(); } if (e.key === 'ArrowRight') { droite = true; e.preventDefault(); } };
     const ku = (e) => { if (e.key === 'ArrowLeft') gauche = false; if (e.key === 'ArrowRight') droite = false; };
     document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
     const tenir = (btn, sens) => {
@@ -1451,7 +1511,7 @@
       btn.addEventListener('pointerdown', on); ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, off));
     };
     tenir(app.querySelector('#j-g'), -1); tenir(app.querySelector('#j-d'), 1);
-    cv.addEventListener('pointerdown', (e) => { cible = e.offsetX; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointerdown', (e) => { if (annonce > decompte) { passerLecture(); return; } cible = e.offsetX; cv.setPointerCapture(e.pointerId); });
     cv.addEventListener('pointermove', (e) => { if (cible != null) cible = e.offsetX; });
     ['pointerup', 'pointercancel'].forEach((ev) => cv.addEventListener(ev, () => { cible = null; }));
     // Le tableau change de taille (bandeau sur deux lignes, rotation de l'écran) : on redimensionne le dessin
