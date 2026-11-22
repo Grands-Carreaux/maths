@@ -158,17 +158,21 @@ Il suffit d'y copier les fichiers.
   partie suivante. La carte du jeu, en haut du portail, indique par exemple « 3 vies + 2 vies bonus ».
 - Règle : l'élève déplace une petite craie avec les flèches (tactiles ou du clavier), **attrape les entiers** (+10 points)
   et **évite les décimaux** (une vie perdue). Les nombres tombent de plus en plus vite (vitesse maximale vers 3 minutes).
-- **Calculs encadrés en jaune** (environ un nombre sur huit) : 0,5 + 0,5 ; 4 × 2,5 ; 1,6 − 0,6… Résultat entier attrapé : +30 ;
+- **Calculs encadrés en jaune** (environ un objet sur cinq) : 0,5 + 0,5 ; 4 × 2,5 ; 1,6 − 0,6… Résultat entier attrapé : +30 ;
   résultat décimal attrapé : une vie perdue. Ils tombent plus lentement, pour laisser le temps de calculer.
 - **Combo** : 5 bonnes prises d'affilée rapportent +20 points (jauge à côté du score). Le combo repart à zéro quand on perd une vie.
 - **La craie s'use** : une jauge « Craie » se vide en 16 secondes environ et se recharge à chaque bonne prise.
   Si elle est vide, l'élève perd une vie. Rester sur le côté sans rien attraper ne marche donc plus.
-- **Bonus** : le premier arrive à 20 secondes, puis un bonus de 12 secondes toutes les 27 secondes environ, tiré au hasard
-  (jamais deux fois le même d'affilée). Pendant un bonus, les **points sont doublés** (+40 par bonne prise) et les nombres
-  tombent à 85 % de la vitesse du moment. À la fin, un bilan s'affiche (« Bonus : 5 attrapés sur 7 ») ; tout bon : +50.
-  Bonus possibles : nombres pairs, impairs, multiples de 5, nombres plus grands que 50 (dès le début) ; puis fractions dont
-  le quotient est un entier, multiples de 3, « que des calculs » (après 1 minute) ; puis multiples de 9 et **règle inversée**
-  (attrape les décimaux, évite les entiers) (après 1 min 40).
+- **Bonus** : le premier arrive à 20 secondes. Un bonus dure **20 secondes**, puis, si l'élève ne s'est pas trompé,
+  « Prolongation ! » : il continue tant que l'élève ne se trompe pas (attraper un mauvais nombre ou un calcul non entier),
+  **60 secondes au plus**. Ensuite, 15 secondes de règle normale avant le bonus suivant.
+  Pendant un bonus, les **points sont doublés** (+40 par bonne prise) et les nombres tombent à 85 % de la vitesse du moment.
+  À la fin, un bilan s'affiche (« Bonus : 5 attrapés sur 7 ») ; tout bon : +50.
+  **Un bonus sur deux est « que des calculs »** (il ne tombe que des calculs : attraper ceux dont le résultat est un entier).
+  Les autres sont tirés au hasard : nombres pairs, impairs, multiples de 5, plus grands que 50 (dès le début) ; fractions dont
+  le quotient est un entier, multiples de 3 (après 1 minute) ; multiples de 9 et **règle inversée** (après 1 min 40).
+- Hors bonus, environ **un objet sur cinq est un calcul** encadré en jaune.
+- Le jeu laisse **toujours un passage libre plus large que la gomme** entre les mauvais nombres : on peut toujours les éviter.
 - **Annonces** : la nouvelle règle reste affichée 3 secondes (l'élève peut toucher l'écran pour passer), puis « 3, 2, 1 ».
   Le retour à la règle normale est annoncé plus rapidement.
 - **Mode expert**, débloqué à 300 points en mode normal : la règle change toutes les 15 secondes

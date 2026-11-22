@@ -1180,7 +1180,7 @@
       '<p>Déplace ta craie avec les flèches ◀ ▶ (ou celles du clavier). <strong>Attrape les nombres entiers</strong>, évite les nombres décimaux. Les nombres tombent de plus en plus vite, et tu as 3 vies, plus tes vies bonus.</p>' +
       '<p>Les <strong>calculs encadrés en jaune</strong> rapportent +30 si leur résultat est un entier. <strong>5 bonnes prises d’affilée</strong> : combo, +20.</p>' +
       '<p><strong>Ta craie s’use</strong> : chaque bonne prise la recharge. Si elle est vide, tu perds une vie. Impossible de gagner en restant sur le côté !</p>' +
-      '<p>Régulièrement, un <strong>bonus</strong> change la règle (nombres pairs, multiples de 9, règle inversée, que des calculs…) et <strong>double les points</strong>. Tout bon : +50. La règle s’affiche en grand avant de commencer ; touche l’écran quand tu l’as lue.</p></div>' +
+      '<p>Régulièrement, un <strong>bonus</strong> change la règle (que des calculs, nombres pairs, multiples de 9, règle inversée…) et <strong>double les points</strong>. Sans faute, le bonus est <strong>prolongé</strong> (jusqu’à 1 minute). Tout bon : +50. La règle s’affiche en grand avant de commencer ; touche l’écran quand tu l’as lue.</p></div>' +
       '<div class="card jeu-panneau"><div class="jeu-ligne"><span>Vies pour ta prochaine partie : <strong>' + txtVies(b) + '</strong></span>' + pastilles(b) + '</div>' +
       '<div class="jeu-ligne"><span>Ton record</span><strong>' + record('normal') + ' pts</strong></div>' +
       (exp ? '<div class="jeu-ligne"><span>Ton record en mode expert</span><strong>' + record('expert') + ' pts</strong></div>' : '') +
@@ -1264,7 +1264,8 @@
     REGLES[k + 'E'] = { bandeau: txt.charAt(0).toUpperCase() + txt.slice(1), pts: 20, gen };
   });
   // Bonus du mode normal : de plus en plus variés au fil de la partie (secondes de jeu → bonus possibles)
-  const BONUS_PAR_TEMPS = [[0, ['pairs', 'impairs', 'multiples5', 'sup50']], [60, ['fractions', 'multiples3b', 'calculs']], [100, ['multiples9', 'inverse']]];
+  // (« que des calculs » revient un bonus sur deux, en alternance avec ceux-ci)
+  const BONUS_PAR_TEMPS = [[0, ['pairs', 'impairs', 'multiples5', 'sup50']], [60, ['fractions', 'multiples3b']], [100, ['multiples9', 'inverse']]];
 
   // Tuile « calcul » : petit calcul avec des décimaux, résultat entier une fois sur deux.
   function genCalcul() {
@@ -1325,11 +1326,15 @@
     // 3 s pour lire la règle (on peut toucher l'écran pour passer), puis 3, 2, 1. Retour à la règle normale : plus court.
     const LECTURE = 3, DECOMPTE = 3, LECTURE_RETOUR = 1.5, DECOMPTE_RETOUR = 1.5;
     let decompte = DECOMPTE, annonce = LECTURE + DECOMPTE, premiere = true, bilanBonus = '';
-    // Mode normal : bonus de 12 s, avec 15 s de règle normale entre deux bonus (premier bonus à 20 s). Mode expert : règle changée toutes les 15 s.
-    const DUREE_BONUS = 12;
+    // Mode normal : bonus de 20 s au moins, prolongé tant que l'élève ne se trompe pas (60 s au plus), puis 15 s de règle normale.
+    // Un bonus sur deux est « que des calculs ». Premier bonus à 20 s. Mode expert : règle changée toutes les 15 s.
+    const DUREE_BONUS = 20, PLAFOND_BONUS = 60, ENTRE_BONUS = 15;
+    let nBonus = 0, debutBonus = 0, erreurBonus = false, prolongation = false;
     const ordreExpert = ['premiers', 'multiples3', 'multiples5e', 'multiples10', 'multiples9E', 'sup50E', 'inverseE', 'calculsE'].sort(() => Math.random() - 0.5);
     let iExpert = 0, prochainBonus = 20, dernierBonus = '';
     const choisirBonus = () => {
+      nBonus++;
+      if (nBonus % 2 === 0) return 'calculs';
       const pool = BONUS_PAR_TEMPS.filter(([t0]) => tJeu >= t0).flatMap(([, l]) => l).filter((k) => k !== dernierBonus);
       dernierBonus = pool[Math.floor(Math.random() * pool.length)]; return dernierBonus;
     };
@@ -1350,7 +1355,8 @@
         bilanBonus = 'Bonus : ' + bonusPris + ' attrapé' + (bonusPris > 1 ? 's' : '') + ' sur ' + bonusVus;
         if (bonusVus >= 3 && bonusPris === bonusVus) { score += 50; bilanBonus += ' · Parfait ! +50'; app.querySelector('#jscore').textContent = score; }
       } else bilanBonus = '';
-      bonusPris = 0; bonusVus = 0;
+      bonusPris = 0; bonusVus = 0; erreurBonus = false; prolongation = false; debutBonus = tJeu;
+      if (r === 'base' && mode === 'normal') prochainBonus = tJeu + ENTRE_BONUS;
       regle = r; finPhase = tJeu + duree; items = [];
       const retour = r === 'base' && mode === 'normal';
       decompte = retour ? DECOMPTE_RETOUR : DECOMPTE; annonce = (retour ? LECTURE_RETOUR : LECTURE) + decompte; majBandeau();
@@ -1362,15 +1368,27 @@
 
     function apparaitre() {
       let g = REGLES[regle].gen(), pts = REGLES[regle].pts, calcul = false;
-      if (regle === 'base' && mode === 'normal' && Math.random() < 1 / 8) { g = genCalcul(); pts = 30; calcul = true; }
+      if (regle === 'base' && mode === 'normal' && Math.random() < 1 / 5) { g = genCalcul(); pts = 30; calcul = true; }
       if (g.calc) calcul = true;
       const taillePolice = Math.round((calcul ? 22 : 30) * echelle());
       cx.font = '700 ' + taillePolice + 'px ' + POLICE;
       const txt = g.calc || g.txt;
       const lw = g.frac ? Math.max(cx.measureText(String(g.frac[0])).width, cx.measureText(String(g.frac[1])).width) : cx.measureText(txt).width;
       const w = lw + (calcul ? 28 : 16) * echelle(), h = (g.frac ? 70 : calcul ? 46 : 40) * echelle();
-      let x, essais = 0;
-      do { x = w / 2 + 6 + Math.random() * Math.max(1, W - w - 12); essais++; } while (essais < 8 && items.some((it) => it.y < h * 1.5 && Math.abs(it.x - x) < (it.w + w) / 2 + 6));
+      // Toujours un passage libre plus large que la gomme entre les mauvais nombres de la moitié haute du tableau
+      const passageLibre = (x) => {
+        if (g.bon) return true;
+        const iv = items.filter((it) => !it.bon && it.y < H * 0.6).map((it) => [it.x - it.w / 2, it.x + it.w / 2]).concat([[x - w / 2, x + w / 2]]).sort((a, b) => a[0] - b[0]);
+        let bord = 0;
+        for (const [a, b] of iv) { if (a - bord >= J.w * 1.25) return true; bord = Math.max(bord, b); }
+        return W - bord >= J.w * 1.25;
+      };
+      let x, essais = 0, ok = false;
+      do {
+        x = w / 2 + 6 + Math.random() * Math.max(1, W - w - 12); essais++;
+        ok = passageLibre(x) && !items.some((it) => it.y < h * 1.5 && Math.abs(it.x - x) < (it.w + w) / 2 + 6);
+      } while (essais < 12 && !ok);
+      if (!passageLibre(x)) return false; // pas de place : on réessaie un peu plus tard
       items.push(Object.assign(g, { txt, x, y: -h / 2, w, h, pts, calcul, taillePolice, angle: (Math.random() - 0.5) * 0.12 }));
     }
     function ecrireCraie(texte, x, y, taillePx, couleur) {
@@ -1449,11 +1467,20 @@
       if (annonce <= 0) {
         if (mode === 'expert' && tJeu >= finPhase) { iExpert = (iExpert + 1) % ordreExpert.length; changerRegle(ordreExpert[iExpert], 15); }
         if (mode === 'normal') {
-          if (regle === 'base' && tJeu >= prochainBonus) { changerRegle(choisirBonus(), DUREE_BONUS); prochainBonus = tJeu + DUREE_BONUS + 15; }
-          else if (regle !== 'base' && tJeu >= finPhase) changerRegle('base', 0);
+          if (regle === 'base' && tJeu >= prochainBonus) changerRegle(choisirBonus(), DUREE_BONUS);
+          else if (regle !== 'base') {
+            const fin = tJeu - debutBonus >= PLAFOND_BONUS || (tJeu >= finPhase && erreurBonus);
+            if (fin) changerRegle('base', 0);
+            else if (tJeu >= finPhase && !prolongation) {
+              prolongation = true;
+              effets.push({ txt: 'Prolongation !', x: W / 2, y: H * 0.4, c: T.jaune, v: 1.6, gros: true });
+              app.querySelector('#bandeau-txt').textContent = REGLES[regle].bandeau.replace(/^BONUS : /, 'Sans faute, le bonus continue : ') + ' (+' + 2 * REGLES[regle].pts + ')';
+            }
+          }
         }
       }
-      const reste = enBonus() || mode === 'expert' ? Math.max(0, finPhase - tJeu) / (mode === 'expert' ? 15 : DUREE_BONUS) : 0;
+      const reste = prolongation ? Math.max(0, debutBonus + PLAFOND_BONUS - tJeu) / (PLAFOND_BONUS - DUREE_BONUS)
+        : enBonus() || mode === 'expert' ? Math.max(0, finPhase - tJeu) / (mode === 'expert' ? 15 : DUREE_BONUS) : 0;
       app.querySelector('#bandeau-temps').style.width = (reste * 100) + '%';
       // déplacement du personnage
       const vJ = W * 1.15;
@@ -1473,7 +1500,7 @@
         majCraie();
       }
       const vitesse = Math.min(400, 110 + 1.6 * tJeu) * echelle() * lent;
-      if (annonce <= 0) { prochain -= dt; if (prochain <= 0) { apparaitre(); prochain = Math.max(0.5, 1.2 - tJeu * 0.004) / lent; } }
+      if (annonce <= 0) { prochain -= dt; if (prochain <= 0) { prochain = apparaitre() === false ? 0.3 : Math.max(0.5, 1.2 - tJeu * 0.004) / lent; } }
       const py = H - REBORD - J.h;
       items.forEach((it) => { it.y += vitesse * (it.calcul ? 0.7 : 1) * dt; });
       items = items.filter((it) => {
@@ -1486,6 +1513,7 @@
             if (combo % 5 === 0) { score += 20; effets.push({ txt: 'Combo ! +20', x: W / 2, y: H * 0.42, c: T.jaune, v: 1.4, gros: true }); }
           } else {
             vies--; combo = 0; majVies(); visage = 'triste'; effetVisage = 0.8;
+            if (enBonus()) erreurBonus = true; // pendant la prolongation, la première erreur termine le bonus
             effets.push({ txt: it.calcul ? 'Pas entier !' : 'Raté !', x: it.x, y: py - 12, c: T.rouge, v: 1 });
             cadre.classList.remove('choc'); void cadre.offsetWidth; cadre.classList.add('choc');
           }
@@ -1520,7 +1548,7 @@
     const arreter = () => { fini = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); if (obs) obs.disconnect(); else window.removeEventListener('resize', taille); document.body.classList.remove('en-jeu'); window.__jeuStop = null; };
     window.__jeuStop = () => { if (!fini) { arreter(); enregistrer(); } };
     app.querySelector('#j-quit').onclick = () => finJeu();
-    window.__gc.jeu = { etat: () => ({ t, tJeu, score, vies, regle, combo, annonce, items: items.map((i) => ({ bon: i.bon, x: i.x, y: i.y, calcul: i.calcul, txt: i.txt })), J: { x: J.x, w: J.w } }) };
+    window.__gc.jeu = { etat: () => ({ t, tJeu, score, vies, regle, combo, annonce, H, prolongation, items: items.map((i) => ({ bon: i.bon, x: i.x, y: i.y, w: i.w, calcul: i.calcul, txt: i.txt })), J: { x: J.x, w: J.w } }) };
 
     function enregistrer() {
       const duree = Math.round(t), moi = getMoi(), cleR = 'record:' + mode + ':' + idEleve(), ancien = store.get(cleR, 0);
