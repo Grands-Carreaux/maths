@@ -231,6 +231,28 @@ Il suffit d'y copier les fichiers.
   En touchant une étoile, l'élève voit ses coordonnées, ses meilleurs scores, et peut ouvrir l'exerciseur.
   Les étoiles se placent toutes seules quand on ajoute des exerciseurs.
 
+## Progression, semaines, récompenses, brevet, 5 minutes chrono
+
+- **La progression suit l'élève** d'un appareil à l'autre (prénom + classe) : XP, meilleurs scores de chaque exerciseur
+  (et donc étoiles de la constellation et « ✓ réussi » des conseils), vies bonus et record du jeu, semaines validées,
+  avatar et craie choisis. Tout est rangé dans l'onglet **Profils** du tableur (colonne « Progression »).
+  Pour les élèves qui avaient déjà travaillé, tout est recalculé à partir de l'onglet Résultats.
+  Les meilleurs scores sont rangés par élève : sur une tablette partagée, chacun voit les siens.
+- **Semaines validées** : 3 séries dans la semaine (du lundi au dimanche) valident la semaine ; l'accueil affiche
+  « Cette semaine ●●○ 2/3 » et « 📅 4 semaines d'affilée ». Le 🔥 des jours d'affilée reste. Les semaines de vacances
+  de la zone A ne cassent pas le compteur : leurs lundis sont listés dans `app.js` et dans `Code.gs` (`LUNDIS_VACANCES`),
+  à compléter pour l'année 2027-2028.
+- **Mon profil** (bouton sur la carte d'accueil, ou toucher l'avatar) : couleur de l'avatar (une par niveau), motif
+  (rayures, pois, étoiles, damier, cible : niveaux 2, 4, 6, 8, 10), couleur de la craie du jeu (une tous les 500 XP),
+  et **l'album des mathématiciens** (une carte par niveau, les autres en silhouette).
+- **Brevet (3e)** : carte « Brevet J−… » (première épreuve le 24 juin 2027, `DATE_BREVET` dans `app.js`) avec la partie
+  des automatismes suggérée cette semaine (Nombres, Calcul littéral, Fonctions et données, Géométrie, Tout mélangé,
+  en alternance) ; elle est signalée « Suggérée cette semaine » dans l'exerciseur.
+- **5 minutes chrono** : 5 questions mélangées, tirées des exerciseurs que l'élève a déjà travaillés (tous ceux de
+  son niveau s'il en a fait moins de deux). Elles rapportent des XP et comptent pour la semaine. Dans l'espace
+  professeur, la ligne indique seulement « fait » (pas de score, pas de détail), et l'onglet Par élève a une colonne
+  « 5 min chrono ».
+
 ## Rappels de cours et rattrapage
 
 - **Rappel de cours** : sur la page de chaque exerciseur (sauf les automatismes), une carte « Rappel de cours »

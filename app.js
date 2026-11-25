@@ -48,13 +48,98 @@
   // XP des séries terminées mais pas encore envoyées (hors connexion) ; les scores du jeu ne comptent pas
   const xpEnAttente = (file, m) => file.filter((x) => x.themeId && cleMoi(x) === cleMoi(m)).reduce((a, x) => a + xpSerie(x.score, x.total), 0);
   const getProfil = (m) => store.get('xp:' + cleMoi(m), { xp: 0, jours: 0 });
-  // L'avatar gagne un côté à chaque niveau : triangle, carré, pentagone… jusqu'au cercle au dernier niveau.
-  function avatar(xp, prenom) {
-    const r = rangDe(xp), c = COUL_RANG[r], lettre = '<text x="24" y="' + (r ? 31 : 36) + '" text-anchor="middle">' + esc(prenom.charAt(0).toUpperCase()) + '</text>';
-    if (r === RANGS.length - 1) return '<svg class="avatar" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="' + c + '"/>' + lettre + '</svg>';
-    const n = r + 3, pts = [];
+  // Meilleurs scores : rangés par élève (une tablette peut servir à plusieurs élèves)
+  const cleBest = (id, l) => 'best:' + idEleve() + ':' + id + ':' + l;
+  const getBest = (id, l) => store.get(cleBest(id, l), null);
+  const setBest = (id, l, v) => store.set(cleBest(id, l), v);
+
+  /* ---------- Semaines validées : 3 séries dans la semaine (du lundi au dimanche) ---------- */
+  // Lundis des semaines de vacances (zone A, 2026-2027) : elles ne cassent pas les semaines d'affilée. (Même liste dans le script Google.)
+  const LUNDIS_VACANCES = ['2026-10-19', '2026-10-26', '2026-12-21', '2026-12-28', '2027-02-15', '2027-02-22', '2027-04-12', '2027-04-19',
+    '2027-07-05', '2027-07-12', '2027-07-19', '2027-07-26', '2027-08-02', '2027-08-09', '2027-08-16', '2027-08-23', '2027-08-30'];
+  const SERIES_SEMAINE = 3;
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const lundiDe = (d) => { d = new Date(d || Date.now()); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return ymd(d); };
+  const lundiAvant = (l) => { const d = new Date(l + 'T12:00:00'); do { d.setDate(d.getDate() - 7); } while (LUNDIS_VACANCES.includes(ymd(d))); return ymd(d); };
+  function compterSemaine(sem, date) {
+    const k = lundiDe(date);
+    if (sem.k !== k) { sem.k = k; sem.n = 0; }
+    sem.n++;
+    if (sem.n === SERIES_SEMAINE) { sem.suite = sem.derV === lundiAvant(k) ? (sem.suite || 0) + 1 : 1; sem.derV = k; return true; }
+    return false;
+  }
+  const semaineAffichee = (sem) => {
+    const k = lundiDe(); sem = sem || {};
+    return { n: sem.k === k ? sem.n || 0 : 0, suite: sem.derV === k || sem.derV === lundiAvant(k) ? sem.suite || 0 : 0 };
+  };
+
+  /* ---------- Récompenses : couleurs et motifs de l'avatar, couleurs de craie du jeu ---------- */
+  const MOTIFS = [{ nom: 'Uni', niv: 1 }, { nom: 'Rayures', niv: 2 }, { nom: 'Pois', niv: 4 }, { nom: 'Étoiles', niv: 6 }, { nom: 'Damier', niv: 8 }, { nom: 'Cible', niv: 10 }];
+  const CRAIES = [{ nom: 'Blanche', c: '#f4f1e4', xp: 0 }, { nom: 'Jaune', c: '#f2c94c', xp: 500 }, { nom: 'Bleue', c: '#8fd3f4', xp: 1000 }, { nom: 'Rose', c: '#ff9fc5', xp: 1500 },
+    { nom: 'Verte', c: '#9be38f', xp: 2000 }, { nom: 'Orange', c: '#ffb26b', xp: 2500 }, { nom: 'Violette', c: '#c9a7ff', xp: 3000 }, { nom: 'Rouge', c: '#ff8a80', xp: 3500 }, { nom: 'Dorée', c: '#ffd700', xp: 4000 }];
+  const getPrefs = (m) => (m ? store.get('prefs:' + cleMoi(m), {}) : {});
+  // Choix valables (débloqués) pour un nombre d'XP donné
+  function choixAvatar(xp, pr) {
+    const r = rangDe(xp);
+    const c = pr && pr.c != null && pr.c <= r ? pr.c : r;
+    const m = pr && pr.m != null && MOTIFS[pr.m] && MOTIFS[pr.m].niv <= r + 1 ? pr.m : 0;
+    return { r, c, m };
+  }
+  const couleurCraie = (xp, pr) => { const i = pr && pr.craie != null && CRAIES[pr.craie] && CRAIES[pr.craie].xp <= xp ? pr.craie : 0; return CRAIES[i].c; };
+  let numSvg = 0;
+  function formeAvatar(n, cercle) {
+    if (cercle) return { tag: 'circle', att: 'cx="24" cy="24" r="21"' };
+    const pts = [];
     for (let k = 0; k < n; k++) { const a = -Math.PI / 2 + (k + (n === 4 ? 0.5 : 0)) * 2 * Math.PI / n; pts.push((24 + 22 * Math.cos(a)).toFixed(1) + ',' + ((n === 3 ? 28 : 24) + 22 * Math.sin(a)).toFixed(1)); }
-    return '<svg class="avatar" viewBox="0 0 48 48" aria-hidden="true"><polygon points="' + pts.join(' ') + '" fill="' + c + '"/>' + lettre + '</svg>';
+    return { tag: 'polygon', att: 'points="' + pts.join(' ') + '"' };
+  }
+  const MOTIF_SVG = [
+    '',
+    '<pattern id="P" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3.5" height="8" fill="#fff"/></pattern>',
+    '<pattern id="P" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="4.5" cy="4.5" r="2" fill="#fff"/></pattern>',
+    '<pattern id="P" width="12" height="12" patternUnits="userSpaceOnUse"><polygon points="6,1.5 7.3,4.6 10.6,4.8 8,6.9 8.9,10.2 6,8.3 3.1,10.2 4,6.9 1.4,4.8 4.7,4.6" fill="#fff"/></pattern>',
+    '<pattern id="P" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#fff"/><rect x="5" y="5" width="5" height="5" fill="#fff"/></pattern>',
+    ''
+  ];
+  // L'avatar gagne un côté à chaque niveau : triangle, carré, pentagone… jusqu'au cercle au dernier niveau. Couleur et motif au choix.
+  function avatar(xp, prenom, pr, classe) {
+    const { r, c, m } = choixAvatar(xp, pr), id = 'av' + (++numSvg), f = formeAvatar(r + 3, r === RANGS.length - 1);
+    const forme = '<' + f.tag + ' ' + f.att + ' fill="' + COUL_RANG[c] + '"/>';
+    let deco = '';
+    if (m === 5) deco = '<g clip-path="url(#' + id + 'c)" fill="none" stroke="#fff" stroke-width="2.5" opacity=".4"><circle cx="24" cy="24" r="6"/><circle cx="24" cy="24" r="13"/><circle cx="24" cy="24" r="20"/></g>';
+    else if (m) deco = '<g clip-path="url(#' + id + 'c)" opacity=".35"><rect width="48" height="48" fill="url(#' + id + 'p)"/></g>';
+    const defs = m ? '<defs><clipPath id="' + id + 'c"><' + f.tag + ' ' + f.att + '/></clipPath>' + MOTIF_SVG[m].replace('id="P"', 'id="' + id + 'p"') + '</defs>' : '';
+    return '<svg class="avatar' + (classe ? ' ' + classe : '') + '" viewBox="0 0 48 48" aria-hidden="true">' + defs + forme + deco +
+      '<text x="24" y="' + (r ? 31 : 36) + '" text-anchor="middle">' + esc((prenom || '?').charAt(0).toUpperCase()) + '</text></svg>';
+  }
+  // Une demande à envoyer au tableur, dans la même file d'attente que les résultats (hors connexion : envoyée plus tard)
+  function envoyerEtat(obj) {
+    const moi = getMoi(); if (!C.urlScript || !moi) return;
+    const file = store.get('file', []);
+    file.push(Object.assign({ action: 'etat', id: uid(), prenom: moi.prenom, classe: moi.classe }, obj));
+    store.set('file', file); envoyer();
+  }
+  // Progression reçue du tableur : on la fusionne avec ce que l'appareil sait déjà (séries pas encore envoyées comprises)
+  function appliquerProfil(m, srv, file) {
+    const k = 'xp:' + cleMoi(m), loc = store.get(k, {}), auj = jourLocal();
+    const attente = file.filter((x) => x.themeId && cleMoi(x) === cleMoi(m));
+    const sem = { k: lundiDe(), n: (srv.sem ? srv.sem.n : 0), suite: srv.sem ? srv.sem.suite : 0 };
+    sem.derV = sem.suite ? (sem.n >= SERIES_SEMAINE ? sem.k : lundiAvant(sem.k)) : '';
+    attente.forEach((x) => { if (lundiDe(x.date) === sem.k) compterSemaine(sem, x.date); });
+    store.set(k, { xp: srv.xp + xpEnAttente(file, m), jours: Math.max(srv.jours || 0, loc.d === auj ? loc.jours || 0 : 0), d: loc.d, sem });
+    if (cleMoi(m) !== idEleve()) return; // le reste ne concerne que l'élève connecté sur cet appareil
+    Object.keys(srv.best || {}).forEach((b) => {
+      const i = b.lastIndexOf(':'), id = b.slice(0, i), l = +b.slice(i + 1), v = srv.best[b], cur = getBest(id, l);
+      if (!cur || v[0] / v[1] > cur.s / cur.t) setBest(id, l, { s: v[0], t: v[1] });
+    });
+    if (srv.vies != null && !file.some((x) => cleMoi(x) === cleMoi(m))) setViesBonus(srv.vies);
+    if (srv.rec) ['normal', 'expert'].forEach((md) => { const c = 'record:' + md + ':' + idEleve(); if ((srv.rec[md] || 0) > store.get(c, 0)) store.set(c, srv.rec[md]); });
+    if (srv.av || srv.craie != null) {
+      const pr = getPrefs(m);
+      if (srv.av) { pr.c = srv.av.c; pr.m = srv.av.m; }
+      if (srv.craie != null) pr.craie = srv.craie;
+      store.set('prefs:' + cleMoi(m), pr);
+    }
   }
   function htmlXP(p) {
     const r = rangDe(p.xp), suiv = RANGS[r + 1];
@@ -62,6 +147,10 @@
     return '<div class="xp"><button class="rang" aria-expanded="false">Niveau ' + (r + 1) + ' · <b>' + esc(RANGS[r].nom) + '</b> <span aria-hidden="true">ⓘ</span></button>' +
       (p.jours >= 1 ? '<span class="flamme" title="Jours d’affilée avec au moins une série">🔥 ' + p.jours + ' jour' + (p.jours > 1 ? 's' : '') + '</span>' : '') +
       '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><i style="width:' + pct + '%"></i></div>' +
+      ((sa) => '<div class="semaine" title="3 séries dans la semaine valident la semaine"><span>Cette semaine</span><span class="pastilles-sem">' +
+        Array.from({ length: SERIES_SEMAINE }, (_, i) => '<i class="' + (i < sa.n ? 'on' : '') + '"></i>').join('') + '</span><b>' +
+        (sa.n >= SERIES_SEMAINE ? 'validée ✓' : Math.min(sa.n, SERIES_SEMAINE) + '/' + SERIES_SEMAINE) + '</b>' +
+        (sa.suite ? '<span class="sem-suite">📅 ' + sa.suite + ' semaine' + (sa.suite > 1 ? 's' : '') + ' d’affilée</span>' : '') + '</div>')(semaineAffichee(p.sem)) +
       '<small>' + p.xp + ' XP' + (suiv ? ' · prochain niveau à ' + suiv.xp + ' XP : ' + esc(suiv.nom) : ' · niveau maximum !') + '</small>' +
       '<p class="anecdote" hidden>' + esc(RANGS[r].txt) + '</p></div>';
   }
@@ -73,7 +162,7 @@
     const moi = getMoi(), pr = app.querySelector('.profil');
     if (!moi || !pr) return;
     const p = getProfil(moi);
-    pr.querySelector('.avatar').outerHTML = avatar(p.xp, moi.prenom);
+    pr.querySelector('.av-lien').innerHTML = avatar(p.xp, moi.prenom, getPrefs(moi));
     pr.querySelector('.xp').outerHTML = htmlXP(p); brancherXP(pr);
   }
   // Conseils du prof (ordre conseillé) et profil à jour, demandés au tableur à l'ouverture de l'accueil
@@ -86,12 +175,7 @@
       .then((r) => r.json()).then((j) => {
         if (!j || !j.ok) return;
         if (j.conseils) store.set('conseils', j.conseils);
-        if (moi && j.profil) {
-          // on ajoute les séries pas encore envoyées (hors connexion)
-          const enAttente = xpEnAttente(store.get('file', []), moi);
-          const loc = getProfil(moi);
-          store.set('xp:' + cleMoi(moi), { xp: j.profil.xp + enAttente, jours: Math.max(j.profil.jours, loc.d === jourLocal() ? loc.jours : 0), d: loc.d });
-        }
+        if (moi && j.profil) appliquerProfil(moi, j.profil, store.get('file', []));
         apres();
       }).catch(() => { /* hors connexion : on garde ce qu'on a */ });
   }
@@ -99,11 +183,11 @@
     const liste = (store.get('conseils', {})[niveau] || []).map((c) => ({ t: THEMES.find((x) => x.id === c.id && x.classes.includes(niveau)), l: c.l })).filter((c) => c.t && c.t.niveaux[c.l - 1]);
     if (!liste.length) return '';
     return '<section class="conseils"><h2>Conseils du prof</h2><p>Les exerciseurs à faire, dans l’ordre :</p><ol>' + liste.map((c) => {
-      const b = store.get('best:' + c.t.id + ':' + c.l, null), ok = b && b.s >= 0.8 * b.t;
+      const b = getBest(c.t.id, c.l), ok = b && b.s >= 0.8 * b.t;
       return '<li class="' + (ok ? 'fait' : '') + '"><a href="#ex-' + c.t.id + '" ' + styleDom(domaineDe(c.t)) + '>' + esc(c.t.titre) + '</a> <span class="cons-niv">' + (c.t.parties ? esc(c.t.niveaux[c.l - 1].court || c.t.niveaux[c.l - 1].nom) : '★'.repeat(c.l)) + '</span>' + (ok ? ' <span class="cons-ok">✓ réussi</span>' : '') + '</li>';
     }).join('') + '</ol></section>';
   }
-  const reussi = (t) => t.niveaux.some((lv, i) => { const b = store.get('best:' + t.id + ':' + (i + 1), null); return b && b.s >= 0.8 * b.t; });
+  const reussi = (t) => t.niveaux.some((lv, i) => { const b = getBest(t.id, i + 1); return b && b.s >= 0.8 * b.t; });
   const AUTRE = 'Autre';
   const app = document.getElementById('app');
   document.title = C.nomSite;
@@ -179,6 +263,8 @@
     if (h === 'prof') vueProf();
     else if (h === 'jeu') vueJeu();
     else if (h === 'ciel') vueCiel();
+    else if (h === 'profil') vueProfil();
+    else if (h === 'chrono') lancerChrono();
     else if (h.startsWith('dom-')) vueDomaine(h.slice(4));
     else if (h.startsWith('ex-')) { const t = THEMES.find((x) => 'ex-' + x.id === h); t ? vueTheme(t) : vuePortail(); }
     else vuePortail();
@@ -197,9 +283,9 @@
       '<div class="wrap">' +
       '<header class="top"><div class="brand"><div class="logo" aria-hidden="true"></div><div><h1>' + esc(C.nomSite) + '</h1><p>Exerciseurs de mathématiques</p></div></div>' +
       '</header>' +
-      (moi ? '<section class="profil">' + avatar(getProfil(moi).xp, moi.prenom) +
+      (moi ? '<section class="profil"><a href="#profil" class="av-lien" aria-label="Mon profil : avatar et album">' + avatar(getProfil(moi).xp, moi.prenom, getPrefs(moi)) + '</a>' +
         '<div class="profil-txt"><span>Bonjour</span><strong>' + esc(moi.prenom) + '</strong><span>' + esc(moi.classe) + '</span></div>' + htmlXP(getProfil(moi)) +
-        '<div class="profil-btns"><button class="btn btn-ghost" id="chg">Modifier</button><button class="btn btn-ghost" id="changer">Changer d’élève</button></div></section>' : '') +
+        '<div class="profil-btns"><a class="btn btn-ghost" href="#profil">Mon profil</a><button class="btn btn-ghost" id="chg">Modifier</button><button class="btn btn-ghost" id="changer">Changer d’élève</button></div></section>' : '') +
       '<div id="identzone"></div>' +
       '<nav class="niveaux" aria-label="Niveau"><span class="niv-label">Ton niveau</span>' +
       NIVEAUX.map((n) => '<button class="niv" data-n="' + n + '" aria-pressed="' + (n === niveau) + '">' + n + '</button>').join('') +
@@ -220,7 +306,7 @@
     if (chg) chg.onclick = () => { iz.innerHTML = ''; iz.appendChild(formIdent(vuePortail)); iz.querySelector('input').focus(); };
 
     app.querySelectorAll('.niv').forEach((b) => b.onclick = () => { store.set('niveau', b.dataset.n); vuePortail(); });
-    if (moi) app.querySelector('#jeuzone').innerHTML = carteJeu() + (niveau ? carteCiel(niveau) : '');
+    if (moi) app.querySelector('#jeuzone').innerHTML = (niveau ? carteChrono() + carteBrevet(niveau) : '') + carteJeu() + (niveau ? carteCiel(niveau) : '');
     brancherXP(app);
     chargerAccueil(() => { majProfilAffiche(); const cz = app.querySelector('#conszone'); if (cz && niveau) cz.innerHTML = htmlConseils(niveau); });
     const grid = app.querySelector('#grid');
@@ -233,6 +319,84 @@
       return '<a class="dom" href="#dom-' + d.id + '" ' + styleDom(d) + '>' + icone(d.id) + '<b>' + esc(d.nom) + '</b><small>' + lt.length + ' exerciseur' + (lt.length > 1 ? 's' : '') +
         (ok ? ' · ' + ok + ' réussi' + (ok > 1 ? 's' : '') : '') + '</small></a>';
     }).join('') + '</div>';
+  }
+
+  /* =====================================================================
+     5 MINUTES CHRONO : 5 questions mélangées, prises dans les chapitres déjà travaillés
+     ===================================================================== */
+  function carteChrono() {
+    return '<a class="card chrono-carte" href="#chrono"><span class="chrono-ico" aria-hidden="true">⏱</span><span class="jeu-txt"><strong>5 minutes chrono</strong>' +
+      '<span>5 questions mélangées, des XP en plus : parfait pour un soir chargé.</span></span></a>';
+  }
+  function themeChrono(niveau) {
+    const tous = THEMES.filter((t) => t.classes.includes(niveau));
+    const faits = tous.filter((t) => t.niveaux.some((lv, i) => getBest(t.id, i + 1)));
+    const pool = faits.length >= 2 ? faits : tous;
+    return {
+      id: 'chrono', titre: '5 minutes chrono', classes: [niveau], domaine: 'Nombres et calculs', consigne: 'Réponds.', n: 5,
+      niveaux: [{ nom: 'Mélange', gen() {
+        const src = pool[Math.floor(Math.random() * pool.length)];
+        const essayes = src.niveaux.map((lv, i) => i + 1).filter((l) => getBest(src.id, l));
+        const l = essayes.length ? essayes[Math.floor(Math.random() * essayes.length)] : 1;
+        const q = src.niveaux[l - 1].gen();
+        q.consigne = q.consigne || src.consigne;
+        if (q.clavier == null && src.clavier != null) q.clavier = src.clavier;
+        if (q.prefixe == null && src.prefixe != null) q.prefixe = src.prefixe;
+        if (q.irreductible == null && src.irreductible != null) q.irreductible = src.irreductible;
+        q.cat = src.id + ':' + (q.cat || l);
+        return q;
+      } }]
+    };
+  }
+  function lancerChrono() {
+    const moi = getMoi();
+    let niveau = store.get('niveau', null);
+    if (!NIVEAUX.includes(niveau)) niveau = moi ? niveauDeClasse(moi.classe) : null;
+    if (!moi || !niveau) { location.hash = ''; return; }
+    demarrer(themeChrono(niveau), 1);
+  }
+
+  /* ---------- Compte à rebours du brevet (3e) et partie des automatismes suggérée chaque semaine ---------- */
+  const DATE_BREVET = '2027-06-24'; // première épreuve écrite du brevet 2027
+  function partieSuggeree() {
+    const t = THEMES.find((x) => x.id === 'automatismes'); if (!t) return null;
+    const semaines = Math.floor((new Date(lundiDe() + 'T12:00:00') - new Date('2026-08-31T12:00:00')) / (7 * 864e5));
+    return { t, i: ((semaines % t.niveaux.length) + t.niveaux.length) % t.niveaux.length };
+  }
+  function carteBrevet(niveau) {
+    if (niveau !== '3e') return '';
+    const j = Math.ceil((new Date(DATE_BREVET + 'T08:00:00') - Date.now()) / 864e5), ps = partieSuggeree();
+    if (j <= 0 || !ps) return '';
+    return '<a class="card brevet-carte" href="#ex-automatismes"><span class="brevet-j"><small>Brevet</small>J−' + j + '</span><span class="jeu-txt"><strong>Révision de la semaine</strong>' +
+      '<span>Automatismes du brevet · partie « ' + esc(ps.t.niveaux[ps.i].nom) + ' »</span></span></a>';
+  }
+
+  /* =====================================================================
+     MON PROFIL : avatar, craie du jeu, album des mathématiciens
+     ===================================================================== */
+  function vueProfil() {
+    const moi = getMoi();
+    if (!moi) { location.hash = ''; return; }
+    const p = getProfil(moi), pr = getPrefs(moi), ch = choixAvatar(p.xp, pr), r = ch.r;
+    const craieOk = (i) => CRAIES[i].xp <= p.xp, craieSel = CRAIES.findIndex((c) => c.c === couleurCraie(p.xp, pr));
+    app.innerHTML = '<div class="wrap page-profil"><a class="btn btn-ghost back" href="#">← Accueil</a>' +
+      '<div class="profil-tete">' + avatar(p.xp, moi.prenom, pr, 'grand') + '<div><h1>' + esc(moi.prenom) + '</h1><p>' + esc(moi.classe) + ' · niveau ' + (r + 1) + ' : <b>' + esc(RANGS[r].nom) + '</b> · ' + p.xp + ' XP</p></div></div>' +
+      '<section class="card reglage"><h2>Couleur de l’avatar</h2><div class="choix-ligne">' + COUL_RANG.map((c, i) => i <= r
+        ? '<button class="pastille-c' + (i === ch.c ? ' sel' : '') + '" data-c="' + i + '" style="--c:' + c + '" aria-label="Couleur ' + (i + 1) + '" aria-pressed="' + (i === ch.c) + '"></button>'
+        : '<span class="pastille-c verrou" title="Niveau ' + (i + 1) + '" aria-label="Débloquée au niveau ' + (i + 1) + '">🔒</span>').join('') + '</div><p class="aide-r">Une nouvelle couleur à chaque niveau.</p></section>' +
+      '<section class="card reglage"><h2>Motif</h2><div class="choix-ligne">' + MOTIFS.map((mo, i) => mo.niv <= r + 1
+        ? '<button class="motif-b' + (i === ch.m ? ' sel' : '') + '" data-m="' + i + '" aria-pressed="' + (i === ch.m) + '">' + avatar(p.xp, moi.prenom, { c: ch.c, m: i }, 'mini') + '<span>' + mo.nom + '</span></button>'
+        : '<span class="motif-b verrou"><span class="cadenas">🔒</span><span>' + mo.nom + '<br><small>niveau ' + mo.niv + '</small></span></span>').join('') + '</div></section>' +
+      '<section class="card reglage"><h2>Ta craie dans « Au tableau ! »</h2><div class="choix-ligne">' + CRAIES.map((c, i) => craieOk(i)
+        ? '<button class="craie-b' + (i === craieSel ? ' sel' : '') + '" data-k="' + i + '" aria-pressed="' + (i === craieSel) + '"><i style="background:' + c.c + '"></i><span>' + c.nom + '</span></button>'
+        : '<span class="craie-b verrou"><i></i><span>' + c.nom + '<br><small>' + c.xp + ' XP</small></span></span>').join('') + '</div><p class="aide-r">Une nouvelle couleur tous les 500 XP.</p></section>' +
+      '<section class="album"><h2>Album des mathématiciens</h2><p class="aide-r">Chaque niveau débloque une carte.</p><div class="cartes">' + RANGS.map((R, i) => i <= r
+        ? '<article class="carte-m" style="--c:' + COUL_RANG[i] + '"><span class="carte-n">Niveau ' + (i + 1) + '</span><h3>' + esc(R.nom) + '</h3><p>' + esc(R.txt) + '</p></article>'
+        : '<article class="carte-m verrou"><span class="carte-n">Niveau ' + (i + 1) + '</span><h3>?</h3><p>À débloquer à ' + R.xp + ' XP.</p></article>').join('') + '</div></section></div>';
+    const choisir = (maj, etat) => { const n = Object.assign(getPrefs(moi), maj); store.set('prefs:' + cleMoi(moi), n); envoyerEtat(etat(n)); vueProfil(); };
+    app.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => choisir({ c: +b.dataset.c }, (n) => ({ av: { c: +b.dataset.c, m: choixAvatar(p.xp, n).m } })));
+    app.querySelectorAll('[data-m]').forEach((b) => b.onclick = () => choisir({ m: +b.dataset.m }, (n) => ({ av: { c: choixAvatar(p.xp, n).c, m: +b.dataset.m } })));
+    app.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => choisir({ craie: +b.dataset.k }, () => ({ craie: +b.dataset.k })));
   }
 
   /* =====================================================================
@@ -250,7 +414,7 @@
   // Meilleur niveau réussi (8/10 ou plus) : 0 si aucun ; pour les exerciseurs en parties, nombre de parties réussies (3 au plus)
   function eclat(t) {
     let n = 0;
-    t.niveaux.forEach((lv, i) => { const b = store.get('best:' + t.id + ':' + (i + 1), null); if (b && b.s >= 0.8 * b.t) n = t.parties ? n + 1 : i + 1; });
+    t.niveaux.forEach((lv, i) => { const b = getBest(t.id, i + 1); if (b && b.s >= 0.8 * b.t) n = t.parties ? n + 1 : i + 1; });
     return Math.min(3, n);
   }
   function placer(fig, n) {
@@ -314,7 +478,7 @@
     const montrer = (g) => {
       app.querySelectorAll('.etoile.choisie').forEach((x) => x.classList.remove('choisie')); g.classList.add('choisie');
       const s = et[+g.dataset.i], t = s.t;
-      const scores = t.niveaux.map((lv, i) => { const b = store.get('best:' + t.id + ':' + (i + 1), null); return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + (t.parties ? esc(lv.court || lv.nom) : '★'.repeat(i + 1)) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>'; }).join('');
+      const scores = t.niveaux.map((lv, i) => { const b = getBest(t.id, i + 1); return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + (t.parties ? esc(lv.court || lv.nom) : '★'.repeat(i + 1)) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>'; }).join('');
       info.innerHTML = '<strong>' + esc(t.titre) + '</strong> <span class="ciel-coord">(' + nbr(s.x) + ' ; ' + nbr(s.y) + ')</span><div class="prog">' + scores + '</div>' +
         '<a class="btn btn-primary" href="#ex-' + t.id + '">' + (s.e ? 'S’entraîner encore' : 'Allumer cette étoile') + '</a>';
     };
@@ -329,7 +493,7 @@
      ===================================================================== */
   function carteTheme(t) {
     const prog = t.niveaux.map((lv, i) => {
-      const b = store.get('best:' + t.id + ':' + (i + 1), null);
+      const b = getBest(t.id, i + 1);
       return '<span class="pill ' + (b ? tone(b.s, b.t) : '') + '">' + (t.parties ? esc(lv.court || lv.nom) : '★'.repeat(i + 1)) + ' ' + (b ? b.s + '/' + b.t : '–') + '</span>';
     }).join('') + ((ec) => (ec ? '<span class="pill pause">En pause · question ' + questionEnCours(ec) + '/' + ec.n + '</span>' : ''))(lireEnCours(t));
     return '<a class="card theme" href="#ex-' + t.id + '"><h3>' + esc(t.titre) + '</h3><p>' + esc(t.resume) + '</p>' +
@@ -384,7 +548,7 @@
           '<span class="sub">Commencer une nouvelle série remplacera celle-ci.</span></div><div class="btn-row"><button class="btn btn-primary" id="reprendre">Reprendre</button><button class="btn btn-ghost" id="abandon">Abandonner</button></div></div>'
         : '') + '<div class="levels">' +
       t.niveaux.map((lv, i) => {
-        const b = store.get('best:' + t.id + ':' + (i + 1), null);
+        const b = getBest(t.id, i + 1);
         return '<button class="card level' + (avecEtoiles(t) ? '' : ' sans-etoiles') + '" data-l="' + (i + 1) + '">' + (avecEtoiles(t) ? '<span class="stars" aria-label="Niveau ' + (i + 1) + '">' + stars(i + 1) + '</span>' : '') +
           '<span><strong>' + esc(lv.nom) + '</strong><span class="sub">' + (b ? 'Ton meilleur score : ' + b.s + '/' + b.t : 'Pas encore essayé') + '</span></span><span aria-hidden="true">›</span></button>';
       }).join('') + '</div>' +
@@ -400,6 +564,10 @@
     if (ec) {
       app.querySelector('#reprendre').onclick = () => reprendre(t, ec);
       app.querySelector('#abandon').onclick = () => { effacer(t); vueTheme(t); };
+    }
+    if (t.id === 'automatismes' && getMoi() && niveauDeClasse(getMoi().classe) === '3e') {
+      const ps = partieSuggeree(), b = ps && app.querySelector('.level[data-l="' + (ps.i + 1) + '"] strong');
+      if (b) b.insertAdjacentHTML('afterend', '<span class="badge-sugg">Suggérée cette semaine</span>');
     }
     app.querySelectorAll('.level').forEach((b) => b.onclick = () => {
       if (!getMoi()) { const f = app.querySelector('#identzone input'); if (f) { f.focus(); f.closest('form').classList.add('shake'); setTimeout(() => f.closest('form').classList.remove('shake'), 350); } return; }
@@ -436,6 +604,7 @@
   }
   const questionEnCours = (e) => Math.min(e.i + (e.repondu ? 2 : 1), e.n);
   function sauver() {
+    if (S.t.id === 'chrono') return; // une mini-série ne se met pas en pause
     const k = cleEnCours(S.t);
     if (k) store.set(k, { lvl: S.lvl, i: S.i, n: S.n, score: S.score, serie: S.serie, meilleureSerie: S.meilleureSerie, ecoule: Date.now() - S.debut, vus: [...S.vus], cats: [...(S.cats || [])], hist: S.hist, q: S.q, repondu: S.repondu, erreursSuite: S.erreursSuite || 0, coursMontre: !!S.coursMontre, ratt: S.ratt || { n: 0, ok: 0 }, enRattrapage: !!S.enRattrapage, date: Date.now() });
   }
@@ -448,7 +617,7 @@
   }
 
   function demarrer(t, lvl) {
-    S = { t, lvl, i: 0, n: C.nbQuestions, score: 0, serie: 0, meilleureSerie: 0, debut: Date.now(), vus: new Set(), cats: new Set(), hist: [], erreursSuite: 0, coursMontre: false, ratt: { n: 0, ok: 0 }, enRattrapage: false };
+    S = { t, lvl, i: 0, n: t.n || C.nbQuestions, score: 0, serie: 0, meilleureSerie: 0, debut: Date.now(), vus: new Set(), cats: new Set(), hist: [], erreursSuite: 0, coursMontre: false, ratt: { n: 0, ok: 0 }, enRattrapage: false };
     poser();
   }
 
@@ -839,7 +1008,7 @@
     if (z.innerHTML) { z.innerHTML = ''; return; }
     z.innerHTML = '<div class="quitbar"><span>Ta série est enregistrée sur cet appareil : tu pourras la reprendre plus tard à la question ' + questionEnCours(S) + '.</span>' +
       '<span class="btn-row"><button class="btn" id="q-non">Continuer</button><button class="btn btn-primary" id="q-pause">Faire une pause</button><button class="btn btn-ghost" id="q-stop">Abandonner la série</button></span></div>';
-    const sortir = () => { const t = S.t; S = null; stopKeys(); vueTheme(t); };
+    const sortir = () => { const t = S.t; S = null; stopKeys(); if (t.id === 'chrono') { location.hash = ''; vuePortail(); } else vueTheme(t); };
     z.querySelector('#q-non').onclick = () => { z.innerHTML = ''; };
     z.querySelector('#q-pause').onclick = () => { sauver(); sortir(); };
     z.querySelector('#q-stop').onclick = () => { effacer(S.t); sortir(); };
@@ -857,17 +1026,18 @@
     let xpTxt = '';
     if (moiB) {
       const p0 = getProfil(moiB), auj = jourLocal(), hier = jourLocal(new Date(Date.now() - 864e5));
-      const p1 = { xp: p0.xp + gain, jours: p0.d === auj ? p0.jours || 1 : p0.d === hier ? (p0.jours || 0) + 1 : 1, d: auj };
+      const p1 = { xp: p0.xp + gain, jours: p0.d === auj ? p0.jours || 1 : p0.d === hier ? (p0.jours || 0) + 1 : 1, d: auj, sem: Object.assign({}, p0.sem) };
+      const semValidee = compterSemaine(p1.sem, Date.now());
       store.set('xp:' + cleMoi(moiB), p1);
       const r0 = rangDe(p0.xp), r1 = rangDe(p1.xp);
       xpTxt = '<div class="card gain-xp' + (r1 > r0 ? ' monte' : '') + '"><strong>+' + gain + ' XP</strong>' +
         (r1 > r0 ? '<span>Nouveau niveau ' + (r1 + 1) + ' : <b>' + esc(RANGS[r1].nom) + '</b> ! Ton avatar gagne un côté.</span><span class="anecdote">' + esc(RANGS[r1].txt) + '</span>'
-          : '<span>' + p1.xp + ' XP au total · niveau ' + (r1 + 1) + ' : ' + esc(RANGS[r1].nom) + '</span>') + '</div>';
+          : '<span>' + p1.xp + ' XP au total · niveau ' + (r1 + 1) + ' : ' + esc(RANGS[r1].nom) + '</span>') +
+        (semValidee ? '<span class="sem-ok">📅 Semaine validée ! (' + SERIES_SEMAINE + ' séries cette semaine)</span>' : '') +
+        (CRAIES.some((c) => c.xp > p0.xp && c.xp <= p1.xp) ? '<span>Nouvelle couleur de craie débloquée : va voir <a href="#profil">Mon profil</a>.</span>' : '') + '</div>';
     }
     const duree = (Date.now() - S.debut) / 1000;
-    const cle = 'best:' + t.id + ':' + lvl;
-    const best = store.get(cle, null);
-    if (!best || score > best.s) store.set(cle, { s: score, t: n });
+    if (t.id !== 'chrono') { const best = getBest(t.id, lvl); if (!best || score > best.s) setBest(t.id, lvl, { s: score, t: n }); }
     const p = score / n;
     const titre = p >= 0.9 ? 'Excellent !' : p >= 0.7 ? 'Très bien !' : p >= 0.5 ? 'C’est en bonne voie.' : 'Continue à t’entraîner, ça va venir.';
     const moi = getMoi() || { prenom: '?', classe: '?' };
@@ -875,7 +1045,7 @@
       id: uid(), date: new Date().toISOString(), prenom: moi.prenom, classe: moi.classe,
       themeId: t.id, theme: t.titre, niveau: lvl, niveauNom: t.niveaux[lvl - 1].nom,
       score, total: n, duree: Math.round(duree),
-      detail: S.hist.map((h, i) => 'Q' + (i + 1) + (h.juste ? ' ok' : ' faux') + (h.ratt == null ? '' : h.ratt ? ' ratt ok' : ' ratt faux')).join(' ')
+      detail: t.id === 'chrono' ? '' : S.hist.map((h, i) => 'Q' + (i + 1) + (h.juste ? ' ok' : ' faux') + (h.ratt == null ? '' : h.ratt ? ' ratt ok' : ' ratt faux')).join(' ')
     };
     const recap = S.hist.map((h, i) => '<li><span class="n">' + (i + 1) + '.</span><span>' + h.enonce + '</span><span class="' + (h.juste ? 'ok">✓' : 'ko">✗ ' + h.att) + '</span></li>').join('');
     app.innerHTML =
@@ -889,7 +1059,7 @@
         (bonusApres > bonusAvant ? 'Bravo, 8/10 ou plus : +1 vie pour ' + JEU.nom + ' !' : reussie ? 'Réserve de vies bonus pleine !' : JEU.nom) + '</strong>' +
         '<span>' + (reussie ? 'Ta prochaine partie : ' + txtVies(bonusApres) + '.' : 'Fais 8/10 ou plus pour gagner une vie bonus. Tu peux quand même jouer !') + '</span></span>' + pastilles(bonusApres) + '</a>' +
       '<div class="btn-row">' +
-      (p >= 0.8 && lvl < 3 ? '<button class="btn btn-primary" id="up">Passer au niveau ' + '★'.repeat(lvl + 1) + '</button>' : '') +
+      (p >= 0.8 && lvl < 3 && t.niveaux[lvl] ? '<button class="btn btn-primary" id="up">Passer au niveau ' + '★'.repeat(lvl + 1) + '</button>' : '') +
       '<button class="btn ' + (p >= 0.8 && lvl < 3 ? '' : 'btn-primary') + '" id="again">Nouvelle série</button>' +
       '<a class="btn" href="#dom-' + domaineDe(t).id + '">Autres exerciseurs</a></div>' +
       '<details class="card recap"><summary>Revoir mes réponses</summary><ol>' + recap + '</ol></details>' +
@@ -931,17 +1101,20 @@
     if (envoiEnCours) return envoiEnCours;
     envoiEnCours = (async () => {
       let file = store.get('file', []);
-      for (const r of file.slice()) {
+      const essayes = new Set();
+      // on relit la file à chaque tour : ce qui est ajouté pendant l'envoi part aussi
+      for (let r; (r = store.get('file', []).find((x) => !essayes.has(x.id)));) {
+        essayes.add(r.id);
         try {
           const rep = await fetch(C.urlScript, { method: 'POST', body: JSON.stringify(r) });
           const j = await rep.json();
           if (j && j.ok) {
-            file = file.filter((x) => x.id !== r.id); store.set('file', file);
-            if (j.profil) { const k = 'xp:' + cleMoi(r), loc = store.get(k, {}); store.set(k, { xp: j.profil.xp + xpEnAttente(file, r), jours: j.profil.jours, d: loc.d || jourLocal() }); }
+            file = store.get('file', []).filter((x) => x.id !== r.id); store.set('file', file); // relue après l'attente
+            if (j.profil) appliquerProfil(r, j.profil, file);
           }
         } catch (e) { break; }
       }
-      return file.length ? 'attente' : 'ok';
+      return store.get('file', []).length ? 'attente' : 'ok';
     })().finally(() => { envoiEnCours = null; });
     return envoiEnCours;
   }
@@ -1000,7 +1173,7 @@
   function rendreProf(pz) {
     const d = donneesProf;
     const classes = [...new Set(d.map((l) => l.classe).concat(donneesJeu.map((l) => l.classe)))].sort();
-    const themes = [...new Set(d.map((l) => l.themeId))].map((id) => ({ id, titre: (THEMES.find((t) => t.id === id) || {}).titre || id }));
+    const themes = [...new Set(d.map((l) => l.themeId))].map((id) => ({ id, titre: id === 'chrono' ? '5 minutes chrono' : (THEMES.find((t) => t.id === id) || {}).titre || id }));
     const sel = (id, opts, val) => '<select id="' + id + '">' + opts.map(([v, l]) => '<option value="' + esc(v) + '"' + (v === val ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select>';
     pz.innerHTML =
       '<div class="card panel"><div class="filters">' +
@@ -1075,17 +1248,18 @@
     const LJ = donneesJeu.filter((l) => (!F.classe || l.classe === F.classe) && (!F.q || l.prenom.toLowerCase().includes(F.q)) && dansPeriode(l));
     const eleves = new Map();
     L.slice().sort((a, b) => b.t - a.t).forEach((l) => {
-      if (!eleves.has(l.cleEleve)) eleves.set(l.cleEleve, { cle: l.cleEleve, prenom: l.prenom, classe: l.classe, n: 0, s: 0, tot: 0, der: l.t, best: new Map() });
+      if (!eleves.has(l.cleEleve)) eleves.set(l.cleEleve, { cle: l.cleEleve, prenom: l.prenom, classe: l.classe, n: 0, s: 0, tot: 0, chrono: 0, der: l.t, best: new Map() });
       const e = eleves.get(l.cleEleve);
+      if (l.themeId === 'chrono') { e.chrono++; return; } // « 5 minutes chrono » : on compte seulement qu'elle a été faite
       e.n++; e.s += l.score; e.tot += l.total;
       const k = l.themeId + ':' + l.niveau, b = e.best.get(k);
       if (!b || l.score / l.total > b.score / b.total) e.best.set(k, l);
     });
-    const moy = L.length ? Math.round(L.reduce((s, l) => s + l.score / l.total, 0) / L.length * 100) : 0;
+    const LS = L.filter((l) => l.themeId !== 'chrono'), moy = LS.length ? Math.round(LS.reduce((s, l) => s + l.score / l.total, 0) / LS.length * 100) : 0;
     const meter = (p) => { const c = p >= 80 ? 'var(--ok)' : p >= 50 ? 'var(--mid)' : 'var(--ko)'; return '<span class="meter"><i style="width:' + p + '%;background:' + c + '"></i></span>' + p + ' %'; };
     const dt = (t) => new Date(t).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    const nomT = (id) => (THEMES.find((t) => t.id === id) || {}).titre || id;
-    const etoiles = (l) => { const th = THEMES.find((t) => t.id === l.themeId); return th && th.parties ? esc((th.niveaux[l.niveau - 1] || {}).court || '') : '★'.repeat(l.niveau); };
+    const nomT = (id) => (id === 'chrono' ? '5 minutes chrono' : (THEMES.find((t) => t.id === id) || {}).titre || id);
+    const etoiles = (l) => { if (l.themeId === 'chrono') return ''; const th = THEMES.find((t) => t.id === l.themeId); return th && th.parties ? esc((th.niveaux[l.niveau - 1] || {}).court || '') : '★'.repeat(l.niveau); };
 
     // Colonnes de chaque onglet : titre, valeur de tri, contenu affiché
     const COLS = {
@@ -1093,7 +1267,8 @@
         { id: 'prenom', titre: 'Élève', v: (e) => e.prenom, h: (e) => '<strong>' + esc(e.prenom) + '</strong>' },
         { id: 'classe', titre: 'Classe', v: (e) => e.classe, h: (e) => esc(e.classe) },
         { id: 'n', titre: 'Séries', v: (e) => e.n, h: (e) => e.n, num: true },
-        { id: 'pct', titre: 'Réussite', v: (e) => e.s / e.tot, h: (e) => meter(Math.round(e.s / e.tot * 100)), num: true },
+        { id: 'pct', titre: 'Réussite', v: (e) => (e.tot ? e.s / e.tot : -1), h: (e) => (e.tot ? meter(Math.round(e.s / e.tot * 100)) : '—'), num: true },
+        { id: 'chrono', titre: '5 min chrono', v: (e) => e.chrono, h: (e) => (e.chrono ? e.chrono + ' fois' : '—'), num: true },
         { id: 'best', titre: 'Meilleurs scores', h: (e) => '<div class="cell-pills">' + [...e.best.values()].sort((a, b) => a.themeId.localeCompare(b.themeId) || a.niveau - b.niveau).map((b) => '<span class="pill ' + tone(b.score, b.total) + '">' + esc(nomT(b.themeId)) + ' ' + etoiles(b) + ' ' + b.score + '/' + b.total + '</span>').join('') + '</div>' },
         { id: 'date', titre: 'Dernière activité', v: (e) => e.der, h: (e) => dt(e.der), num: true }
       ],
@@ -1103,7 +1278,7 @@
         { id: 'classe', titre: 'Classe', v: (l) => l.classe, h: (l) => esc(l.classe) },
         { id: 'theme', titre: 'Exerciseur', v: (l) => nomT(l.themeId), h: (l) => esc(nomT(l.themeId)) },
         { id: 'niveau', titre: 'Niveau', v: (l) => l.niveau, h: etoiles },
-        { id: 'score', titre: 'Score', v: (l) => l.score / l.total, h: (l) => '<span class="pill ' + tone(l.score, l.total) + '">' + l.score + '/' + l.total + '</span>' },
+        { id: 'score', titre: 'Score', v: (l) => (l.themeId === 'chrono' ? -1 : l.score / l.total), h: (l) => (l.themeId === 'chrono' ? '<span class="pill">fait</span>' : '<span class="pill ' + tone(l.score, l.total) + '">' + l.score + '/' + l.total + '</span>') },
         { id: 'duree', titre: 'Durée', v: (l) => l.duree, h: (l) => fmtDuree(l.duree), num: true }
       ],
       jeu: [
@@ -1349,6 +1524,8 @@
     if (mode === 'expert' && !expertDebloque()) return vueJeu();
     const bonusUtilises = viesBonus();
     setViesBonus(0);
+    if (bonusUtilises) envoyerEtat({ vies: 0 });
+    const craieJ = couleurCraie(getMoi() ? getProfil(getMoi()).xp : 0, getPrefs(getMoi()));
     document.body.classList.add('en-jeu');
     app.innerHTML = '<div class="jeu-play">' +
       '<div class="bar"><button class="iconbtn" id="j-quit" aria-label="Arrêter la partie">✕</button><span class="vies" id="vies"></span>' +
@@ -1467,7 +1644,7 @@
     function personnage() {
       const y = H - REBORD - J.h, x = J.x - J.w / 2, r = 12;
       cx.fillStyle = T.ombre; cx.beginPath(); cx.ellipse(J.x, H - REBORD + 2, J.w / 2, 5, 0, 0, Math.PI * 2); cx.fill();
-      cx.fillStyle = T.craie; cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, J.w, J.h, r) : cx.rect(x, y, J.w, J.h); cx.fill();
+      cx.fillStyle = craieJ; cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, J.w, J.h, r) : cx.rect(x, y, J.w, J.h); cx.fill();
       cx.fillStyle = T.jaune; cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, J.w * 0.22, J.h, [r, 4, 4, r]) : cx.rect(x, y, J.w * 0.22, J.h); cx.fill();
       // visage : il regarde dans la direction du mouvement
       const dir = gauche ? -1 : droite ? 1 : 0, ex = J.x + J.w * 0.12 + dir * 3, ey = y + J.h * 0.42;

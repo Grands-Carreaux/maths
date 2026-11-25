@@ -610,3 +610,53 @@ a.dom:hover { border-color: var(--c); }
 .cours-btn { width: auto !important; padding: 0 10px; font-size: 14px; font-weight: 700; }
 .ratt-etiquette { display: inline-block; margin-bottom: 8px; padding: 3px 10px; border-radius: 999px; background: var(--mid-bg); color: var(--mid); font-size: 13px; font-weight: 700; }
 .ratt-bilan { margin: 0; font-weight: 700; color: var(--mid); }
+
+/* ---------- Semaines validées ---------- */
+.profil .semaine { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
+.profil .semaine > span:first-child { opacity: .8; }
+.pastilles-sem { display: inline-flex; gap: 4px; }
+.pastilles-sem i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--soleil); }
+.pastilles-sem i.on { background: var(--soleil); }
+.sem-suite { background: rgba(255,255,255,.14); border-radius: 999px; padding: 2px 10px; font-weight: 700; }
+.sem-ok { font-weight: 700; color: var(--ok) !important; }
+.av-lien { display: block; flex: none; border-radius: 12px; }
+
+/* ---------- 5 minutes chrono et brevet ---------- */
+.chrono-carte, .brevet-carte { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 14px; text-decoration: none; color: inherit; }
+.chrono-carte { border-color: color-mix(in srgb, #3a5bd9 40%, var(--border)); background: linear-gradient(90deg, color-mix(in srgb, #3a5bd9 12%, var(--surface)), var(--surface) 70%); }
+.chrono-ico { width: 48px; height: 48px; flex: none; border-radius: 12px; display: grid; place-items: center; font-size: 28px; background: #3a5bd9; color: #fff; }
+.brevet-carte { border-color: color-mix(in srgb, #c98a00 45%, var(--border)); background: linear-gradient(90deg, color-mix(in srgb, var(--soleil) 16%, var(--surface)), var(--surface) 70%); }
+.brevet-j { width: 64px; flex: none; border-radius: 12px; background: var(--nuit); color: var(--soleil); display: grid; place-items: center; padding: 6px 0; font: 800 18px var(--f-head); line-height: 1.1; }
+.brevet-j small { font-size: 11px; color: #fff; font-weight: 700; }
+.badge-sugg { display: inline-block; margin: 2px 0; padding: 2px 8px; border-radius: 999px; background: var(--mid-bg); color: var(--mid); font-size: 12px; font-weight: 700; }
+
+/* ---------- Mon profil : avatar, craie, album ---------- */
+.profil-tete { display: flex; align-items: center; gap: 16px; margin: 8px 0 18px; }
+.profil-tete h1 { font-size: 28px; }
+.profil-tete p { margin: 2px 0 0; color: var(--muted); }
+.avatar.grand { width: 96px; height: 96px; }
+.avatar.grand text { font-size: 20px; }
+.avatar.mini { width: 40px; height: 40px; }
+.reglage { padding: 14px 16px; margin-bottom: 14px; display: grid; gap: 10px; }
+.reglage h2, .album h2 { font-size: 18px; }
+.aide-r { margin: 0; color: var(--muted); font-size: 13px; }
+.choix-ligne { display: flex; flex-wrap: wrap; gap: 10px; }
+.pastille-c { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--surface); background: var(--c); box-shadow: 0 0 0 1px var(--border); display: grid; place-items: center; font-size: 14px; }
+.pastille-c.sel { box-shadow: 0 0 0 3px var(--ink); }
+.pastille-c.verrou { background: var(--paper); color: var(--muted); }
+.motif-b, .craie-b { display: grid; justify-items: center; gap: 4px; min-width: 64px; padding: 8px 6px; border-radius: 12px; border: 2px solid var(--border); background: var(--surface); font-size: 13px; text-align: center; color: var(--ink); }
+.motif-b.sel, .craie-b.sel { border-color: var(--ink); }
+.motif-b.verrou, .craie-b.verrou { opacity: .55; border-style: dashed; }
+.cadenas { font-size: 22px; height: 40px; display: grid; place-items: center; }
+.craie-b i { display: block; width: 44px; height: 14px; border-radius: 7px; background: #26453a; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.craie-b.verrou i { background: repeating-linear-gradient(45deg, var(--border) 0 4px, transparent 4px 8px); }
+.album { margin-top: 6px; display: grid; gap: 8px; }
+.cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.carte-m { border-radius: 16px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-top: 8px solid var(--c); display: grid; gap: 6px; align-content: start; box-shadow: var(--shadow); }
+.carte-m h3 { font-size: 18px; color: var(--c); }
+.carte-m p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink); }
+.carte-n { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.carte-m.verrou { --c: var(--border); background: repeating-linear-gradient(135deg, var(--paper) 0 10px, var(--surface) 10px 20px); box-shadow: none; }
+.carte-m.verrou h3 { color: var(--muted); font-size: 28px; }
+.carte-m.verrou p { color: var(--muted); }
+@media (prefers-color-scheme: dark) { .carte-m h3 { color: color-mix(in srgb, var(--c) 55%, white); } }
