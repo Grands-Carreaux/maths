@@ -14,7 +14,8 @@
     grandeurs: '<circle cx="12" cy="13" r="8.5"/><path d="M12 8.5V13l3 2M10 2h4"/>',
     donnees: '<path d="M3 21h18"/><path d="M5 21v-6h3.5v6M10.5 21V9H14v12M16 21V4h3.5v17"/>',
     algo: '<path d="M4 7h6l1.5 2H20v4H11.5L10 15H4z"/><path d="M4 18h9"/>',
-    automatismes: '<path d="M13 2 5 14h6l-1 8 8-12h-6z"/>'
+    automatismes: '<path d="M13 2 5 14h6l-1 8 8-12h-6z"/>',
+    automatismes4: '<path d="M13 2 5 14h6l-1 8 8-12h-6z"/>'
   };
   const DOMAINES = [
     { id: 'nombres', nom: 'Nombres et calculs', c: '#3a5bd9', forme: '50%', sous: ['Nombres relatifs', 'Fractions', 'Calcul littéral'] },
@@ -22,7 +23,8 @@
     { id: 'grandeurs', nom: 'Grandeurs et mesures', c: '#e8590c', forme: '30%', sous: [] },
     { id: 'donnees', nom: 'Données et fonctions', c: '#8338ec', forme: '12%', sous: ['Fonctions', 'Statistiques', 'Probabilités'] },
     { id: 'algo', nom: 'Algorithmique', c: '#d6336c', forme: '40% 0', sous: ['Scratch'] },
-    { id: 'automatismes', nom: 'Automatismes du brevet', c: '#c98a00', forme: '50% 0', sous: ['Automatismes'], niveaux: ['3e'] }
+    { id: 'automatismes', nom: 'Automatismes du brevet', c: '#c98a00', forme: '50% 0', sous: ['Automatismes'], niveaux: ['3e'] },
+    { id: 'automatismes4', nom: 'Automatismes de 4e', c: '#c98a00', forme: '50% 0', sous: ['Automatismes de 4e'], niveaux: ['4e'] }
   ];
   const domaineDe = (t) => DOMAINES.find((d) => d.nom === t.domaine || d.sous.includes(t.domaine)) || DOMAINES[0];
   const icone = (id) => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + ICO[id] + '</svg>';
@@ -409,7 +411,8 @@
     grandeurs: { nom: 'cercle', cercle: [2.6, 2.6, 1.5] },
     donnees: { nom: 'courbe', traits: [[[0.8, 4.4], [2, 5.4], [3.2, 4.8], [4.4, 5.8]]] },
     algo: { nom: 'flèche', traits: [[[5.2, 4], [5.2, 2.6], [4.6, 3.1]], [[5.2, 2.6], [5.8, 3.1]]] },
-    automatismes: { nom: 'éclair', traits: [[[8.6, 3.8], [7, 2.2], [8.4, 2.2], [6.8, 0.6]]] }
+    automatismes: { nom: 'éclair', traits: [[[8.6, 3.8], [7, 2.2], [8.4, 2.2], [6.8, 0.6]]] },
+    automatismes4: { nom: 'éclair', traits: [[[8.6, 3.8], [7, 2.2], [8.4, 2.2], [6.8, 0.6]]] }
   };
   // Meilleur niveau réussi (8/10 ou plus) : 0 si aucun ; pour les exerciseurs en parties, nombre de parties réussies (3 au plus)
   function eclat(t) {

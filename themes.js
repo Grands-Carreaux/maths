@@ -827,7 +827,200 @@
   const dfmt = (x) => (x < 0 ? M : '') + String(Math.abs(rr(x))).replace('.', ',');
   const fa = (x, premier) => (x < 0 && !premier ? P(dfmt(x)) : dfmt(x));      // nombre dans un calcul : parenthèses si négatif (sauf en tête)
   const signeTxt = (s, quoi, n) => (s > 0 ? 'Les deux nombres ont le même signe : ' + quoi + ' est positif.' : 'Les deux nombres sont de signes contraires : ' + quoi + ' est négatif.');
+  const plusR = (x) => (x < 0 ? ' ' + M + ' ' + dfmt(-x) : ' + ' + dfmt(x)); // ajouter un nombre : 4 − 5 et jamais 4 + (−5)
   const relQ = (enonce, r, texte, lignes, cat) => ({ type: 'nombre', decimal: true, enonce, reponse: decQ(rr(r)), prefixe: '= ', clavier: '-,', cat, correction: { texte, lignes } });
+  /* ---------- Nombres relatifs : addition et soustraction ----------
+     Écriture : on n'écrit jamais « + (−5) » mais « − 5 » ; les parenthèses seulement quand deux « moins » se suivent : 3 − (−5). */
+  const DEC_SIMPLES = [0.5, 1.5, 2.5, 3.5, 4.5, 0.2, 1.2, 2.4, 0.8, 3.6, 1.6, 6.5];
+  const vRel = (dec, max) => (dec ? pick(DEC_SIMPLES) + (Math.random() < 0.4 ? rnd(1, 5) : 0) : rnd(1, max || 20));
+  // termes : [{ op: '' | '+' | '−', v }] ; seul « − » peut être suivi d'un négatif
+  const sommeTxt = (T0) => T0.map((t, i) => (i === 0 ? dfmt(t.v) : ' ' + (t.op === '+' ? '+' : M) + ' ' + (t.v < 0 ? P(dfmt(t.v)) : dfmt(t.v)))).join('');
+  const signes = (T0) => T0.map((t, i) => (i === 0 || t.op === '+' ? t.v : -t.v));
+  const chaine = (vals) => vals.map((x, i) => (i === 0 ? dfmt(x) : plusR(x))).join('');
+  const regleSomme = (a, b) => {
+    const r = rr(a + b);
+    if (a === 0 || b === 0) return '';
+    if ((a < 0) === (b < 0)) return 'Même signe : on ajoute les distances à zéro (' + dfmt(Math.abs(a)) + ' + ' + dfmt(Math.abs(b)) + ' = ' + dfmt(Math.abs(r)) + ') et on garde le signe ' + (a < 0 ? M : '+') + '.';
+    const grand = Math.abs(a) > Math.abs(b) ? a : b;
+    return 'Signes contraires : on soustrait les distances à zéro (' + dfmt(Math.max(Math.abs(a), Math.abs(b))) + ' ' + M + ' ' + dfmt(Math.min(Math.abs(a), Math.abs(b))) + ' = ' + dfmt(Math.abs(r)) + ') et on garde le signe de ' + dfmt(grand) + ', le plus éloigné de zéro.';
+  };
+  function addRel1() { // deux nombres
+    const dec = Math.random() < 0.34;
+    let a, b, op, r;
+    do { a = vRel(dec) * (Math.random() < 0.55 ? -1 : 1); b = vRel(dec && Math.random() < 0.7); op = pick(['+', M]); r = rr(op === '+' ? a + b : a - b); } while (r === 0 || (a > 0 && r > 0));
+    const T0 = [{ v: rr(a) }, { op, v: rr(b) }], e = sommeTxt(T0), s2 = signes(T0);
+    return relQ(e, r, regleSomme(s2[0], s2[1]), [{ m: e + ' = ' + dfmt(r) }], dec ? 'add-dec' : op === '+' ? 'add' : 'sous');
+  }
+  function addRel2() { // soustraire un négatif, nombre manquant
+    const dec = Math.random() < 0.3, k = pick(['moinsmoins', 'moinsmoins', 'trou-plus', 'trou-moins']);
+    if (k === 'moinsmoins') {
+      const a = rr(vRel(dec) * (Math.random() < 0.5 ? -1 : 1)), b = rr(-vRel(dec)), T0 = [{ v: a }, { op: M, v: b }], e = sommeTxt(T0), r = rr(a - b);
+      return relQ(e, r, 'Soustraire un nombre, c’est ajouter son opposé : ' + M + ' (' + dfmt(b) + ') devient + ' + dfmt(-b) + '. ' + regleSomme(a, -b),
+        [{ m: e }, { m: '= ' + chaine([a, -b]) }, { m: '= ' + dfmt(r) }], 'moinsmoins' + (dec ? '-dec' : ''));
+    }
+    let a, x, c;
+    do { a = rr(vRel(dec, 12) * (Math.random() < 0.6 ? -1 : 1)); x = rr(vRel(dec, 12) * (Math.random() < 0.5 ? -1 : 1)); c = k === 'trou-plus' ? rr(a + x) : rr(x - a); } while (c === 0);
+    if (k === 'trou-plus') { // a + ? = c  →  ? = c − a
+      const e = dfmt(a) + ' + ' + TROU + ' = ' + dfmt(c);
+      return Object.assign(relQ(e, x, 'On cherche le nombre à ajouter à ' + dfmt(a) + ' pour obtenir ' + dfmt(c) + ' : ? = ' + dfmt(c) + ' ' + M + ' ' + (a < 0 ? P(dfmt(a)) : dfmt(a)) + '.',
+        [{ m: '? = ' + dfmt(c) + ' ' + M + ' ' + (a < 0 ? P(dfmt(a)) : dfmt(a)) }, { m: '= ' + chaine([c, -a]) }, { m: '= ' + dfmt(x) }], 'trou-plus'), { prefixe: '? = ' });
+    }
+    const b = Math.abs(a), e = TROU + ' ' + M + ' ' + dfmt(b) + ' = ' + dfmt(rr(x - b)); // ? − b = c  →  ? = c + b
+    return Object.assign(relQ(e, x, 'On cherche le nombre qui, diminué de ' + dfmt(b) + ', donne ' + dfmt(rr(x - b)) + ' : ? = ' + dfmt(rr(x - b)) + ' + ' + dfmt(b) + '.',
+      [{ m: '? = ' + dfmt(rr(x - b)) + ' + ' + dfmt(b) }, { m: '= ' + dfmt(x) }], 'trou-moins'), { prefixe: '? = ' });
+  }
+  function addRel3() { // suites de calculs
+    const dec = Math.random() < 0.3;
+    let T0, vals, r;
+    do {
+      T0 = [{ v: rr(vRel(dec, 15) * (Math.random() < 0.5 ? -1 : 1)) }];
+      const mm = rnd(1, 3);
+      for (let i = 1; i < 4; i++) { const op = pick(['+', M]), v = vRel(dec && Math.random() < 0.6, 15); T0.push({ op: i === mm ? M : op, v: rr(i === mm ? -v : v) }); }
+      vals = signes(T0); r = rr(vals.reduce((x, y) => x + y, 0));
+    } while (r === 0);
+    const e = sommeTxt(T0), pos = rr(vals.filter((x) => x > 0).reduce((x, y) => x + y, 0)), neg = rr(-vals.filter((x) => x < 0).reduce((x, y) => x + y, 0));
+    const lignes = [{ m: e }, { m: '= ' + chaine(vals), c: 'Soustraire un négatif, c’est ajouter son opposé.' }];
+    if (pos && neg) lignes.push({ m: '= ' + dfmt(pos) + ' ' + M + ' ' + dfmt(neg), c: 'On regroupe les positifs et les négatifs.' });
+    lignes.push({ m: '= ' + dfmt(r) });
+    return relQ(e, r, 'On transforme les soustractions de négatifs, puis on regroupe les nombres positifs d’un côté et les négatifs de l’autre.', lignes, 'suite' + (dec ? '-dec' : ''));
+  }
+
+  /* ---------- Automatismes de 4e : les notions de 5e et de début de 4e à entretenir ---------- */
+  const unite = (u) => '&nbsp;' + u;
+  const d6 = (x) => Number(Number(x).toFixed(6)), dfmt6 = (x) => (x < 0 ? M : '') + String(Math.abs(d6(x))).replace('.', ','); // sans arrondi au centième
+  const nb4 = (enonce, r, opts) => Object.assign({ type: 'nombre', decimal: true, enonce: pt(enonce), reponse: decQ(d6(r)), prefixe: '= ', clavier: ',', correction: { texte: '', lignes: [] } }, opts);
+  const AUTO4_CALCUL = [
+    () => { // priorités
+      const a = rnd(2, 12), b = rnd(2, 9), c = rnd(2, 9), k = pick([0, 1, 2]);
+      const e = k === 0 ? a + ' + ' + b + ' × ' + c : k === 1 ? a * 2 + ' ' + M + ' ' + b + ' × ' + Math.min(c, 2) : P(a + ' + ' + b) + ' × ' + c;
+      const r = k === 0 ? a + b * c : k === 1 ? a * 2 - b * Math.min(c, 2) : (a + b) * c;
+      const l = k === 0 ? [{ m: '= ' + a + ' + ' + b * c }] : k === 1 ? [{ m: '= ' + a * 2 + ' ' + M + ' ' + b * Math.min(c, 2) }] : [{ m: '= ' + (a + b) + ' × ' + c }];
+      return auto(nb4('Calcule : <strong>' + e + '</strong>', r, { clavier: '-', correction: { texte: k === 2 ? 'On calcule d’abord entre parenthèses.' : 'La multiplication est prioritaire.', lignes: [{ m: e }].concat(l, [{ m: '= ' + num(r) }]) } }), 'a4-priorites', 'Priorités');
+    },
+    () => { // produit astucieux
+      const [x, y] = pick([[25, 4], [5, 2], [50, 2], [20, 5], [125, 8]]), k = rnd(3, 19), e = x + ' × ' + k + ' × ' + y;
+      return auto(nb4('Calcule astucieusement : <strong>' + e + '</strong>', x * y * k, { clavier: '', correction: { texte: 'On regroupe ' + x + ' × ' + y + ' = ' + x * y + '.', lignes: [{ m: e + ' = ' + x * y + ' × ' + k + ' = ' + x * y * k }] } }), 'a4-astucieux', 'Calcul mental');
+    },
+    () => { // × et ÷ par 10, 100, 1000, 0,1
+      const x = rr(rnd(11, 999) / pick([10, 100])), [op, f] = pick([['×', 10], ['×', 100], ['×', 1000], ['÷', 10], ['÷', 100], ['×', 0.1]]);
+      const r = op === '×' ? x * f : x / f, e = dfmt6(x) + ' ' + op + ' ' + dfmt6(f);
+      return auto(nb4('Calcule : <strong>' + e + '</strong>', Number(r.toFixed(6)), { correction: { texte: op === '×' && f >= 10 ? 'Multiplier par ' + f + ' : la virgule se déplace de ' + (String(f).length - 1) + ' rang' + (f > 10 ? 's' : '') + ' vers la droite.' : 'Diviser par 10 (ou multiplier par 0,1) : la virgule se déplace vers la gauche.', lignes: [{ m: e + ' = ' + dfmt6(r) }] } }), 'a4-puissances10', 'Calcul mental');
+    },
+    () => { // moitié, double, quart
+      const k = pick(['moitié', 'double', 'quart']), x = k === 'quart' ? 4 * rnd(3, 25) : rr(rnd(11, 99) / (Math.random() < 0.5 ? 1 : 10) * (k === 'moitié' ? 2 : 1));
+      const r = k === 'moitié' ? x / 2 : k === 'double' ? 2 * x : x / 4;
+      return auto(nb4('Quel est <strong>' + (k === 'double' ? 'le double' : k === 'moitié' ? 'la moitié' : 'le quart') + ' de ' + dfmt(x) + '</strong> ?', rr(r), { prefixe: '', correction: { texte: '', lignes: [{ m: dfmt(x) + (k === 'double' ? ' × 2' : k === 'moitié' ? ' ÷ 2' : ' ÷ 4') + ' = ' + dfmt(rr(r)) }] } }), 'a4-moitie', 'Calcul mental');
+    },
+    () => { // ordre de grandeur (QCM)
+      const a = rnd(2, 9) * 10 + pick([-1, 1, 2, -2]), b = rnd(2, 9) * 10 + pick([-1, 1, -2]), ra = Math.round(a / 10) * 10, rb = Math.round(b / 10) * 10, v = ra * rb;
+      return auto(qcmQ('Sans poser le calcul : <strong>' + a + ' × ' + b + '</strong> est proche de…', [String(v), String(v * 10), String(v / 10), String(v * 100)], 0, 'On arrondit : ' + a + ' ≈ ' + ra + ' et ' + b + ' ≈ ' + rb + '.', [{ m: ra + ' × ' + rb + ' = ' + v }]), 'a4-grandeur', 'Ordre de grandeur');
+    }
+  ];
+  const AUTO4_RELATIFS = [
+    () => auto(addRel1(), 'a4-rel-add1', 'Relatifs'),
+    () => auto(addRel2(), 'a4-rel-add2', 'Relatifs'),
+    () => auto(THEMES_REL_MULT(), 'a4-rel-mult', 'Relatifs'),
+    () => { // comparer
+      const a = rr(vRel(Math.random() < 0.5, 12) * (Math.random() < 0.7 ? -1 : 1)); let b; do { b = rr(vRel(Math.random() < 0.5, 12) * (Math.random() < 0.7 ? -1 : 1)); } while (b === a || (a > 0 && b > 0));
+      const bonne = a < b ? 0 : 1;
+      return auto(qcmQ('Compare : <strong>' + dfmt(a) + ' … ' + dfmt(b) + '</strong>', ['&lt;', '&gt;'], bonne, a < 0 && b < 0 ? 'Entre deux négatifs, le plus grand est le plus proche de zéro.' : 'Un négatif est toujours plus petit qu’un positif.', [{ m: dfmt(a) + (a < b ? ' &lt; ' : ' &gt; ') + dfmt(b) }], 'Quel signe ?'), 'a4-rel-comparer', 'Relatifs');
+    }
+  ];
+  const AUTO4_FRACTIONS = [
+    () => { // comparer deux fractions
+      const b = rnd(2, 6), k = rnd(2, 3), d = b * k; let a, c; do { a = rnd(1, 2 * b); c = rnd(1, 2 * d); } while (a * k === c || gcd(a, b) !== 1 || gcd(c, d) !== 1);
+      const bonne = a * k < c ? 0 : 1, f1 = F(a, b), f2 = F(c, d);
+      return auto(qcmQ('Compare : <strong>' + f1 + ' … ' + f2 + '</strong>', ['&lt;', '&gt;'], bonne, 'On met au même dénominateur, puis on compare les numérateurs.', [{ m: f1 + ' = ' + F(a * k, d) + (bonne === 0 ? ' &lt; ' : ' &gt; ') + f2 }], 'Quel signe ?'), 'a4-frac-comparer', 'Fractions');
+    },
+    () => { // fraction d'une quantité
+      const [a, b] = pick([[1, 2], [1, 3], [2, 3], [1, 4], [3, 4], [2, 5], [3, 5], [5, 6], [3, 10], [7, 10]]), q = b * rnd(2, 12), r = q / b * a;
+      return auto(nb4('Calcule <strong>' + F(a, b) + ' de ' + q + '</strong>.', r, { clavier: '', correction: { texte: 'On divise par ' + b + ', puis on multiplie par ' + a + '.', lignes: [{ m: q + ' ÷ ' + b + ' = ' + q / b }, { m: q / b + ' × ' + a + ' = ' + r }] } }), 'a4-frac-quantite', 'Fractions');
+    },
+    () => { // fraction égale
+      const [a, b] = fracIrrA(9), k = rnd(2, 8), haut = Math.random() < 0.5;
+      return auto(nb4('Complète : <strong>' + F(a, b) + ' = ' + (haut ? F(TROU, b * k) : F(a * k, TROU)) + '</strong>', haut ? a * k : b * k, { clavier: '', prefixe: '? = ', correction: { texte: 'On multiplie le numérateur et le dénominateur par ' + k + '.', lignes: [{ m: F(a, b) + ' = ' + F(a + ' × ' + k, b + ' × ' + k) + ' = ' + F(a * k, b * k) }] } }), 'a4-frac-egale', 'Fractions');
+    },
+    () => { // écriture décimale
+      const [a, b] = pick([[1, 2], [1, 4], [3, 4], [1, 5], [2, 5], [3, 5], [1, 10], [3, 10], [7, 10], [3, 2], [5, 4], [1, 20]]);
+      return auto(nb4('Donne l’écriture décimale de <strong>' + F(a, b) + '</strong>.', a / b, { correction: { texte: 'Une fraction est un quotient : ' + a + ' ÷ ' + b + '.', lignes: [{ m: F(a, b) + ' = ' + a + ' ÷ ' + b + ' = ' + dfmt(a / b) }] } }), 'a4-frac-decimale', 'Fractions');
+    },
+    () => { // simplifier
+      const [a, b] = fracIrrA(9), k = rnd(2, 9), disp = F(k * a, k * b);
+      return auto(nbQ(disp, Q(a, b), { enonce: pt('Simplifie au maximum : ' + disp), clavier: '/', irreductible: true, correction: { texte: k * a + ' et ' + k * b + ' sont divisibles par ' + k + '.', lignes: [{ m: disp + ' = ' + F(k * a + ' ÷ ' + k, k * b + ' ÷ ' + k) + ' = ' + F(a, b) }] } }), 'a4-frac-simplifier', 'Fractions');
+    }
+  ];
+  const AUTO4_PROPORTION = [
+    () => { // quatrième proportionnelle
+      const p = pick([2, 3, 4, 5, 1.5, 2.5, 6]), q1 = rnd(2, 6); let q2; do { q2 = rnd(2, 10); } while (q2 === q1);
+      const [obj, u] = pick([['kg de pommes', 'kg'], ['cahiers', ''], ['litres de jus', 'L'], ['places de cinéma', '']]);
+      return auto(nb4(q1 + ' ' + obj + ' coûtent ' + dfmt(rr(p * q1)) + ' €. Combien coûtent <strong>' + q2 + ' ' + obj + '</strong> ?', rr(p * q2), { prefixe: 'Prix = ', suffixe: '€', correction: { texte: 'On calcule d’abord le prix d’une unité.', lignes: [{ m: dfmt(rr(p * q1)) + ' ÷ ' + q1 + ' = ' + dfmt(p) + ' €' }, { m: dfmt(p) + ' × ' + q2 + ' = ' + dfmt(rr(p * q2)) + ' €' }] } }), 'a4-prop-4e', 'Proportionnalité');
+    },
+    () => { // pourcentages simples
+      const [pc, base] = pick([[10, 10], [50, 2], [25, 4], [20, 5], [75, 4], [5, 20]]), n = base * rnd(2, 30), r = n * pc / 100;
+      return auto(nb4('Calcule <strong>' + pc + ' % de ' + n + '</strong>.', r, { correction: { texte: pc + ' % = ' + F(pc, 100) + (pc === 50 ? ' : c’est la moitié.' : pc === 25 ? ' : c’est le quart.' : pc === 10 ? ' : on divise par 10.' : '.'), lignes: [{ m: n + ' × ' + pc + ' ÷ 100 = ' + dfmt(r) }] } }), 'a4-pourcent', 'Pourcentages');
+    },
+    () => { // prix unitaire
+      const p = pick([1.5, 2.5, 0.5, 3, 1.2, 0.8]), q = rnd(2, 8);
+      return auto(nb4(q + ' stylos coûtent ' + dfmt(rr(p * q)) + ' €. Quel est le <strong>prix d’un stylo</strong> ?', p, { prefixe: 'Prix = ', suffixe: '€', correction: { texte: 'On divise le prix total par le nombre de stylos.', lignes: [{ m: dfmt(rr(p * q)) + ' ÷ ' + q + ' = ' + dfmt(p) + ' €' }] } }), 'a4-prix-unitaire', 'Proportionnalité');
+    },
+    () => { // échelle
+      const [ech, u, f] = pick([[1000, 'm', 10], [100, 'm', 1], [50000, 'km', 0.5], [100000, 'km', 1]]), c = rnd(2, 9), r = rr(c * f);
+      return auto(nb4('Sur un plan à l’échelle <strong>1/' + ech.toLocaleString('fr-FR') + '</strong>, deux points sont à ' + c + ' cm. Quelle est la <strong>distance réelle</strong> en ' + u + ' ?', r, { prefixe: 'Distance = ', suffixe: u, correction: { texte: '1 cm sur le plan représente ' + ech.toLocaleString('fr-FR') + ' cm en réalité, soit ' + dfmt(f) + ' ' + u + '.', lignes: [{ m: c + ' × ' + dfmt(f) + ' = ' + dfmt(r) + ' ' + u }] } }), 'a4-echelle', 'Échelle');
+    }
+  ];
+  const UNITES4 = [['km', 'hm', 'dam', 'm', 'dm', 'cm', 'mm'], ['kg', 'hg', 'dag', 'g', 'dg', 'cg', 'mg'], ['L', 'dL', 'cL', 'mL']];
+  const AUTO4_GRANDEURS = [
+    () => { // conversions
+      const L = pick([UNITES4[0], UNITES4[0], UNITES4[1], UNITES4[2]]), cles = L === UNITES4[1] ? [0, 3, 6] : L === UNITES4[2] ? [0, 1, 2, 3] : [0, 3, 5, 6];
+      let i, j; do { i = pick(cles); j = pick(cles); } while (i === j || Math.abs(i - j) > 3);
+      const x = rr(rnd(2, 95) / pick([1, 10])), r = Number((x * Math.pow(10, j - i)).toFixed(6));
+      return auto(nb4('Convertis : <strong>' + dfmt6(x) + ' ' + L[i] + ' = ? ' + L[j] + '</strong>', r, { prefixe: '', suffixe: L[j], correction: { texte: 'De ' + L[i] + ' à ' + L[j] + ', on ' + (j > i ? 'multiplie' : 'divise') + ' par ' + Math.pow(10, Math.abs(j - i)).toLocaleString('fr-FR') + '.', lignes: [{ m: dfmt6(x) + ' ' + L[i] + ' = ' + dfmt6(r) + ' ' + L[j] }] } }), 'a4-conversion', 'Conversions');
+    },
+    () => { // durées
+      const k = pick([0, 1]);
+      if (k === 0) { const h = rnd(1, 4), m = pick([5, 10, 15, 20, 30, 40, 45, 50]); return auto(nb4('Convertis en minutes : <strong>' + h + ' h ' + m + ' min</strong>', h * 60 + m, { clavier: '', prefixe: '', suffixe: 'min', correction: { texte: '1 h = 60 min.', lignes: [{ m: h + ' × 60 + ' + m + ' = ' + (h * 60 + m) + ' min' }] } }), 'a4-duree', 'Durées'); }
+      const h = pick([0.5, 1.5, 2.5, 0.25, 1.25, 0.75]); return auto(nb4('Convertis en minutes : <strong>' + dfmt(h) + ' h</strong>', h * 60, { clavier: '', prefixe: '', suffixe: 'min', correction: { texte: '1 h = 60 min, donc ' + dfmt(h) + ' h = ' + dfmt(h) + ' × 60 min.', lignes: [{ m: dfmt(h) + ' × 60 = ' + h * 60 + ' min' }] } }), 'a4-duree-dec', 'Durées');
+    },
+    () => { // périmètre et aire du rectangle
+      const L = rnd(3, 15), l = rnd(2, L - 1), aire = Math.random() < 0.5;
+      return auto(nb4('Un rectangle mesure ' + L + ' cm sur ' + l + ' cm. Calcule son <strong>' + (aire ? 'aire' : 'périmètre') + '</strong>.', aire ? L * l : 2 * (L + l), { clavier: '', prefixe: (aire ? 'Aire' : 'Périmètre') + ' = ', suffixe: aire ? 'cm²' : 'cm', correction: { texte: aire ? 'Aire du rectangle = longueur × largeur.' : 'Périmètre du rectangle = 2 × (longueur + largeur).', lignes: [{ m: aire ? L + ' × ' + l + ' = ' + L * l + ' cm²' : '2 × (' + L + ' + ' + l + ') = ' + 2 * (L + l) + ' cm' }] } }), 'a4-rectangle', 'Aires et périmètres');
+    },
+    () => { // aire du triangle
+      const b = 2 * rnd(2, 8), h = rnd(2, 12);
+      return auto(nb4('Un triangle a une base de ' + b + ' cm et une hauteur de ' + h + ' cm. Calcule son <strong>aire</strong>.', b * h / 2, { clavier: '', prefixe: 'Aire = ', suffixe: 'cm²', correction: { texte: 'Aire du triangle = base × hauteur ÷ 2.', lignes: [{ m: b + ' × ' + h + ' ÷ 2 = ' + b * h / 2 + ' cm²' }] } }), 'a4-triangle-aire', 'Aires et périmètres');
+    },
+    () => { // disque, avec π ≈ 3,14
+      const r = rnd(1, 10), aire = Math.random() < 0.5, v = aire ? rr(3.14 * r * r) : rr(2 * 3.14 * r);
+      return auto(nb4('Un cercle a un rayon de ' + r + ' cm. Calcule ' + (aire ? 'l’<strong>aire du disque</strong>' : 'son <strong>périmètre</strong>') + ' en prenant π ≈ 3,14.', v, { prefixe: (aire ? 'Aire' : 'Périmètre') + ' ≈ ', suffixe: aire ? 'cm²' : 'cm', correction: { texte: aire ? 'Aire du disque = π × rayon × rayon.' : 'Périmètre du cercle = 2 × π × rayon.', lignes: [{ m: aire ? '3,14 × ' + r + ' × ' + r + ' = ' + dfmt(v) + ' cm²' : '2 × 3,14 × ' + r + ' = ' + dfmt(v) + ' cm' }] } }), 'a4-disque', 'Aires et périmètres');
+    }
+  ];
+  const AUTO4_GEOMETRIE = [
+    () => { // angle manquant
+      const a = rnd(25, 100), b = rnd(20, 150 - a);
+      return auto(nb4('Dans un triangle, deux angles mesurent ' + a + '° et ' + b + '°. Quelle est la mesure du <strong>troisième angle</strong> ?', 180 - a - b, { clavier: '', prefixe: 'Angle = ', suffixe: '°', correction: { texte: 'La somme des angles d’un triangle est égale à 180°.', lignes: [{ m: '180 ' + M + ' ' + a + ' ' + M + ' ' + b + ' = ' + (180 - a - b) + '°' }] } }), 'a4-angle-triangle', 'Angles');
+    },
+    () => { // triangle isocèle
+      if (Math.random() < 0.5) { const s = 2 * rnd(10, 60); return auto(nb4('Un triangle isocèle a un angle au sommet principal de ' + s + '°. Combien mesure <strong>chacun des deux autres angles</strong> ?', (180 - s) / 2, { clavier: '', prefixe: 'Angle = ', suffixe: '°', correction: { texte: 'Les deux angles à la base d’un triangle isocèle sont égaux.', lignes: [{ m: '(180 ' + M + ' ' + s + ') ÷ 2 = ' + (180 - s) / 2 + '°' }] } }), 'a4-isocele', 'Angles'); }
+      const b = rnd(20, 85); return auto(nb4('Un triangle isocèle a deux angles à la base de ' + b + '°. Combien mesure l’<strong>angle au sommet principal</strong> ?', 180 - 2 * b, { clavier: '', prefixe: 'Angle = ', suffixe: '°', correction: { texte: 'Les deux angles à la base sont égaux, et la somme des angles vaut 180°.', lignes: [{ m: '180 ' + M + ' 2 × ' + b + ' = ' + (180 - 2 * b) + '°' }] } }), 'a4-isocele-sommet', 'Angles');
+    },
+    () => { // angles opposés par le sommet, angle plat
+      const a = rnd(20, 160), plat = Math.random() < 0.5;
+      return auto(nb4(plat ? 'Deux angles adjacents forment un <strong>angle plat</strong>. L’un mesure ' + a + '°. Combien mesure l’autre ?' : 'Deux angles sont <strong>opposés par le sommet</strong>. L’un mesure ' + a + '°. Combien mesure l’autre ?', plat ? 180 - a : a, { clavier: '', prefixe: 'Angle = ', suffixe: '°', correction: { texte: plat ? 'Un angle plat mesure 180°.' : 'Deux angles opposés par le sommet ont la même mesure.', lignes: [{ m: plat ? '180 ' + M + ' ' + a + ' = ' + (180 - a) + '°' : a + '°' }] } }), plat ? 'a4-angle-plat' : 'a4-opposes', 'Angles');
+    },
+    () => { // nature d'un triangle (QCM)
+      const k = pick(['rectangle', 'isocèle', 'équilatéral', 'quelconque']);
+      let a, b;
+      if (k === 'rectangle') { a = 90; b = rnd(20, 70); if (b === 45) b = 40; }
+      else if (k === 'isocèle') { a = rnd(25, 80); if (a === 60 || a === 45) a = 50; b = Math.random() < 0.5 ? a : 180 - 2 * a; }
+      else if (k === 'équilatéral') { a = 60; b = 60; }
+      else { do { a = rnd(25, 85); b = rnd(25, 85); } while (a === b || a + b >= 150 || 180 - a - b === a || 180 - a - b === b || a === 90 || b === 90 || 180 - a - b === 90 || a + b <= 95); }
+      const c = 180 - a - b, opts = ['rectangle', 'isocèle', 'équilatéral', 'quelconque'];
+      return auto(qcmQ('Un triangle a deux angles de ' + a + '° et ' + b + '°. Quelle est sa <strong>nature</strong> ?', opts.map((o) => 'triangle ' + o), opts.indexOf(k), 'On calcule d’abord le troisième angle : 180 ' + M + ' ' + a + ' ' + M + ' ' + b + ' = ' + c + '°.', [{ m: 'Angles : ' + a + '°, ' + b + '° et ' + c + '° : triangle ' + k + '.' }]), 'a4-nature', 'Angles');
+    }
+  ];
+  const AUTO4_PARTIES = [AUTO4_CALCUL, AUTO4_RELATIFS, AUTO4_FRACTIONS, AUTO4_PROPORTION, AUTO4_GRANDEURS, AUTO4_GEOMETRIE];
+  let THEMES_REL_MULT = () => null; // relié plus bas à l'exerciseur « Multiplier et diviser » (niveau ★)
+
   const THEMES = [
     /* ---------------- Automatismes du brevet ---------------- */
     {
@@ -841,6 +1034,21 @@
         { nom: 'Fonctions et données', court: 'Fonctions', gen: () => pick(AUTO_FONCTIONS)() },
         { nom: 'Géométrie', court: 'Géométrie', gen: () => pick(AUTO_GEOMETRIE)() },
         { nom: 'Tout mélangé', court: 'Mélange', gen: () => pick(pick(AUTO_PARTIES))() }
+      ]
+    },
+    {
+      id: 'automatismes-4e', classes: ['4e'], domaine: 'Automatismes de 4e', parties: true,
+      titre: 'Automatismes de 4e',
+      resume: 'Des questions courtes et variées pour entretenir ce que tu sais déjà. Choisis une partie, ou mélange tout.',
+      consigne: 'Automatisme', rappel: 'Sans calculatrice !',
+      niveaux: [
+        { nom: 'Calcul mental et priorités', court: 'Calcul', gen: () => pick(AUTO4_CALCUL)() },
+        { nom: 'Nombres relatifs', court: 'Relatifs', gen: () => pick(AUTO4_RELATIFS)() },
+        { nom: 'Fractions', court: 'Fractions', gen: () => pick(AUTO4_FRACTIONS)() },
+        { nom: 'Proportionnalité et pourcentages', court: 'Proportion.', gen: () => pick(AUTO4_PROPORTION)() },
+        { nom: 'Grandeurs et unités', court: 'Grandeurs', gen: () => pick(AUTO4_GRANDEURS)() },
+        { nom: 'Géométrie', court: 'Géométrie', gen: () => pick(AUTO4_GEOMETRIE)() },
+        { nom: 'Tout mélangé', court: 'Mélange', gen: () => pick(pick(AUTO4_PARTIES))() }
       ]
     },
 
@@ -1206,6 +1414,17 @@
       ]
     },
     {
+      id: 'additionner-relatifs', classes: ['4e', '3e'], domaine: 'Nombres relatifs',
+      titre: 'Additionner et soustraire des relatifs',
+      resume: 'Ajouter et soustraire des nombres positifs et négatifs, entiers ou décimaux.',
+      consigne: 'Calcule.', clavier: '-,',
+      niveaux: [
+        { nom: 'Deux nombres', gen: addRel1 },
+        { nom: 'Soustraire un négatif, nombre manquant', gen: addRel2 },
+        { nom: 'Suites de calculs', gen: addRel3 }
+      ]
+    },
+    {
       id: 'multiplier-relatifs', classes: ['4e', '3e'], domaine: 'Nombres relatifs',
       titre: 'Multiplier et diviser des relatifs',
       resume: 'La règle des signes : produits, quotients, facteurs manquants, puis priorités et carrés.',
@@ -1246,25 +1465,25 @@
           const k = pick(['somme-prod', 'deux-prod', 'parentheses', 'carre', 'quotient']), v = (m) => rnd(2, m) * (Math.random() < 0.55 ? -1 : 1);
           if (k === 'somme-prod') {
             const a = v(9), b = v(6), c = v(6), p = b * c, r = a + p, e = fa(a, true) + ' + ' + fa(b) + ' × ' + fa(c);
-            return relQ(e, r, 'La multiplication est prioritaire : on la calcule d’abord.', [{ m: e }, { m: '= ' + fa(a, true) + ' + ' + fa(p) }, { m: '= ' + num(r) }], k);
+            return relQ(e, r, 'La multiplication est prioritaire : on la calcule d’abord.', [{ m: e }, { m: '= ' + fa(a, true) + plusR(p) }, { m: '= ' + num(r) }], k);
           }
           if (k === 'deux-prod') {
             const a = v(6), b = v(6), c = v(6), d = v(6), p = a * b, q = c * d, r = p - q, e = fa(a, true) + ' × ' + fa(b) + ' ' + M + ' ' + fa(c) + ' × ' + fa(d);
             return relQ(e, r, 'On calcule d’abord les deux produits, puis la soustraction. Soustraire un nombre, c’est ajouter son opposé.',
-              [{ m: e }, { m: '= ' + fa(p, true) + ' ' + M + ' ' + fa(q) }, { m: '= ' + fa(p, true) + ' + ' + fa(-q) }, { m: '= ' + num(r) }], k);
+              [{ m: e }, { m: '= ' + fa(p, true) + ' ' + M + ' ' + fa(q) }].concat(q < 0 ? [{ m: '= ' + fa(p, true) + plusR(-q) }] : []).concat([{ m: '= ' + num(r) }]), k);
           }
           if (k === 'parentheses') {
             let a, b; do { a = v(9); b = v(9); } while (a + b === 0);
-            const c = v(6), s0 = a + b, r = s0 * c, e = P(fa(a, true) + ' + ' + fa(b)) + ' × ' + fa(c);
+            const c = v(6), s0 = a + b, r = s0 * c, e = P(fa(a, true) + plusR(b)) + ' × ' + fa(c);
             return relQ(e, r, 'On calcule d’abord ce qui est entre parenthèses.', [{ m: e }, { m: '= ' + fa(s0, true) + ' × ' + fa(c) }, { m: '= ' + num(r) }], k);
           }
           if (k === 'carre') {
             const a = rnd(2, 6), avecPar = Math.random() < 0.5, val = avecPar ? a * a : -a * a, c = v(5), fois = Math.random() < 0.5;
             const sq = avecPar ? P(M + a) + '<sup>2</sup>' : M + a + '<sup>2</sup>';
-            const r = fois ? val * c : val + c, e = sq + (fois ? ' × ' + fa(c) : ' + ' + fa(c));
+            const r = fois ? val * c : val + c, e = sq + (fois ? ' × ' + fa(c) : plusR(c));
             return relQ(e, r, avecPar ? 'Le carré porte sur (' + M + a + ') : ' + P(M + a) + '<sup>2</sup> = ' + P(M + a) + ' × ' + P(M + a) + ' = ' + a * a + '.'
               : 'Attention : le carré porte seulement sur ' + a + ' : ' + M + a + '<sup>2</sup> = ' + M + P(a + ' × ' + a) + ' = ' + M + a * a + '.',
-              [{ m: e }, { m: '= ' + fa(val, true) + (fois ? ' × ' + fa(c) : ' + ' + fa(c)) }, { m: '= ' + num(r) }], avecPar ? 'carre-par' : 'carre-sans');
+              [{ m: e }, { m: '= ' + fa(val, true) + (fois ? ' × ' + fa(c) : plusR(c)) }, { m: '= ' + num(r) }], avecPar ? 'carre-par' : 'carre-sans');
           }
           let c, d; do { c = v(9); d = v(9); } while (c - d === 0 || Math.abs(c - d) > 12);
           const den = c - d, q = v(6), n0 = q * den, e = fa(n0, true) + ' ÷ ' + P(fa(c, true) + ' ' + M + ' ' + fa(d));
@@ -1304,7 +1523,13 @@
     'addition-fractions': { base: p('On met d’abord au même dénominateur, puis on additionne les numérateurs. On n’additionne <b>jamais</b> les dénominateurs.') + ex(F(1, 4) + ' + ' + F(5, 12) + ' = ' + F(3, 12) + ' + ' + F(5, 12) + ' = ' + F(8, 12) + ' = ' + F(2, 3)),
       niv: { 2: p(F(2, 7) + ' ' + M + ' ' + F(1, 6) + ' = ' + F(12, 42) + ' ' + M + ' ' + F(7, 42) + ' = ' + F(5, 42)), 3: p('Parenthèses d’abord, puis de gauche à droite.') } }
   };
+  COURS['additionner-relatifs'] = { base: p('Même signe : on ajoute les distances à zéro et on garde le signe.') + ex(M + '3 ' + M + ' 4 = ' + M + '7') +
+      p('Signes contraires : on soustrait les distances à zéro et on garde le signe du nombre le plus éloigné de zéro.') + ex(M + '9 + 4 = ' + M + '5'),
+    niv: { 2: p('Soustraire un nombre, c’est ajouter son opposé.') + ex('3 ' + M + ' (' + M + '5) = 3 + 5 = 8'),
+      3: p('On regroupe les nombres positifs et les nombres négatifs.') + ex('4 ' + M + ' (' + M + '6) ' + M + ' 9 + 2 = 4 + 6 ' + M + ' 9 + 2 = 12 ' + M + ' 9 = 3') } };
   THEMES.forEach((t) => { if (COURS[t.id]) t.cours = COURS[t.id]; });
+  const mult = THEMES.find((t) => t.id === 'multiplier-relatifs'); THEMES_REL_MULT = () => mult.niveaux[0].gen();
+  const auto4 = THEMES.find((t) => t.id === 'automatismes-4e'); if (auto4) auto4.rattrapage = true;
   const auto0 = THEMES.find((t) => t.id === 'automatismes'); if (auto0) auto0.rattrapage = true; // question de rattrapage après une erreur
 
   g.THEMES = THEMES;

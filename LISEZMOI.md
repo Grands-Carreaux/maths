@@ -332,10 +332,22 @@ a un résultat ou un terme négatif dans les parties 1 et 2.
 
 | Exerciseur | ★ | ★★ | ★★★ |
 |---|---|---|---|
+| Additionner et soustraire des relatifs | deux nombres, entiers ou décimaux simples (−7 + 12 ; −2,5 − 4) | soustraire un négatif (3 − (−5)), nombre manquant (−6 + ? = 2 ; ? − 4 = −9) | suites de calculs (4 − (−6) − 9 + 2), on regroupe positifs et négatifs |
 | Multiplier et diviser des relatifs | deux nombres : produit ou quotient (entiers, et 1 fois sur 4 un décimal simple : −2,5 × 4) | 3 ou 4 facteurs (compter les négatifs), facteur manquant : −8 × ? = 40, ? ÷ (−5) = −7 | priorités (−6 + (−4) × (−6)), deux produits, parenthèses, carrés ((−4)² et −4²), quotient (44 ÷ (2 − (−9))) |
 
 La correction rappelle la règle des signes (ou le nombre de facteurs négatifs) et détaille les étapes.
 Clavier : chiffres, signe − et virgule.
+Écriture : jamais « + (−5) » mais « − 5 », y compris dans les corrections ; les parenthèses seulement quand deux « moins »
+se suivent (3 − (−5)) et pour les facteurs négatifs d'un produit ou d'un quotient (9 × (−1,5)).
+
+### Automatismes de 4e (4e seulement)
+
+Questions courtes, sans calculatrice, avec le rattrapage après une erreur. Parties : calcul mental et priorités ;
+nombres relatifs (addition, soustraction, produit, comparaison) ; fractions (comparer, fraction d'une quantité, fraction
+égale, écriture décimale, simplifier) ; proportionnalité et pourcentages (quatrième proportionnelle, 10/25/50 %, prix
+unitaire, échelle) ; grandeurs et unités (conversions, durées, aires et périmètres du rectangle, du triangle, du disque
+avec π ≈ 3,14) ; géométrie (angles d'un triangle, triangle isocèle, angles opposés par le sommet, angle plat, nature
+d'un triangle) ; tout mélangé. Tuile « Automatismes de 4e » sur l'accueil des 4e.
 
 ### Fractions
 
