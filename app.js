@@ -77,11 +77,11 @@
     pr.querySelector('.xp').outerHTML = htmlXP(p); brancherXP(pr);
   }
   // Conseils du prof (ordre conseillé) et profil à jour, demandés au tableur à l'ouverture de l'accueil
-  let dernierAccueil = 0;
+  let dernierAccueil = 0, eleveAccueil = null; // on redemande tout de suite si l'élève a changé (connexion sur un nouvel appareil)
   function chargerAccueil(apres) {
-    if (!C.urlScript || Date.now() - dernierAccueil < 30000) return;
-    dernierAccueil = Date.now();
-    const moi = getMoi();
+    const moi = getMoi(), qui = moi ? cleMoi(moi) : '';
+    if (!C.urlScript || (qui === eleveAccueil && Date.now() - dernierAccueil < 30000)) return;
+    dernierAccueil = Date.now(); eleveAccueil = qui;
     fetch(C.urlScript + '?action=accueil' + (moi ? '&prenom=' + encodeURIComponent(moi.prenom) + '&classe=' + encodeURIComponent(moi.classe) : ''))
       .then((r) => r.json()).then((j) => {
         if (!j || !j.ok) return;
