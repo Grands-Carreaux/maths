@@ -315,6 +315,10 @@
   /* =====================================================================
      PORTAIL
      ===================================================================== */
+  // Le site d'histoire-géographie du collège : une carte discrète en bas de l'accueil, aux couleurs de Clio (autre site, nouvel onglet)
+  const URL_CLIO = 'https://revisions-hgemc.pages.dev/';
+  const CARTE_CLIO = '<a class="card clio-carte" href="' + URL_CLIO + '" target="_blank" rel="noopener"><span class="clio-pastille" aria-hidden="true">HG</span>' +
+    '<span class="jeu-txt"><strong>Révise aussi avec Clio</strong><span>Histoire-géographie et EMC, le site de ton professeur d’HG</span></span><span class="clio-fleche" aria-hidden="true">↗</span></a>';
   function vuePortail() {
     const moi = getMoi();
     let niveau = store.get('niveau', null);
@@ -329,7 +333,7 @@
       '<div id="identzone"></div>' +
       '<nav class="niveaux" aria-label="Niveau"><span class="niv-label">Ton niveau</span>' +
       NIVEAUX.map((n) => '<button class="niv" data-n="' + n + '" aria-pressed="' + (n === niveau) + '">' + n + '</button>').join('') +
-      '</nav><div id="statszone">' + (niveau ? htmlStatsClasses(niveau) : '') + '</div><div id="conszone">' + (niveau ? htmlConseils(niveau) : '') + '</div><div id="jeuzone"></div><div id="grid"></div>' +
+      '</nav><div id="statszone">' + (niveau ? htmlStatsClasses(niveau) : '') + '</div><div id="conszone">' + (niveau ? htmlConseils(niveau) : '') + '</div><div id="jeuzone"></div><div id="grid"></div>' + CARTE_CLIO +
       '<footer class="foot"><a class="btn btn-ghost" href="#prof">Espace professeur</a></footer></div>';
 
     const iz = app.querySelector('#identzone');
