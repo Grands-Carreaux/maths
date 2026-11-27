@@ -182,6 +182,10 @@ Il suffit d'y copier les fichiers.
 - **Un seul score par élève** dans le tableur (onglet « Jeu ») : son meilleur score, pour chaque mode. Une nouvelle partie
   ne remplace la ligne que si elle bat le record ; sinon, rien n'est ajouté. Le tableur reste ainsi léger toute l'année.
 - Les scores impossibles (trop élevés pour la durée de la partie) sont ignorés automatiquement.
+- **Parties limitées** : 2 parties offertes chaque jour ; ensuite, chaque série d'exercices terminée avec au moins la moitié
+  des points (5/10, ou 3/5 en « 5 minutes chrono ») donne une partie. La carte du jeu affiche « 2 parties disponibles »
+  ou « Plus de partie : fais une série d'exercices ». Le compteur suit l'élève d'un appareil à l'autre (onglet Profils).
+  Le nombre de parties offertes se règle dans `app.js` (`JEU.offertes`) et dans `Code.gs` (`PARTIES_OFFERTES`).
 
 ---
 
@@ -224,6 +228,10 @@ Il suffit d'y copier les fichiers.
   pour la 4e et la 3e, rangez-les avec les flèches, puis « Enregistrer les conseils ». Les élèves voient la liste sur l'accueil,
   et les exerciseurs déjà réussis sont barrés.
 - Supprimer un élève dans l'espace professeur efface aussi sa ligne de l'onglet Profils.
+- Supprimer **une ou plusieurs séries** (onglet « Toutes les séries », cases à cocher) recalcule la progression de
+  l'élève concerné (XP, meilleurs scores, semaines) à partir des séries qui restent : pratique quand un élève a fait
+  une série sous le nom d'un camarade. Au début de chaque série, un bandeau rappelle « Série au nom de Léa · 3e 1 ·
+  ce n'est pas toi ? Changer d'élève ».
 - **Ma constellation** (carte sur l'accueil, sous le jeu) : chaque exerciseur du niveau est une étoile placée dans un repère.
   Elle s'allume quand l'élève réussit une série (8/10 ou plus) et grossit avec les niveaux ★★ et ★★★.
   Les étoiles d'un domaine dessinent une figure (π pour Nombres et calculs, triangle rectangle pour la géométrie,
@@ -252,6 +260,15 @@ Il suffit d'y copier les fichiers.
   son niveau s'il en a fait moins de deux). Elles rapportent des XP et comptent pour la semaine. Dans l'espace
   professeur, la ligne indique seulement « fait » (pas de score, pas de détail), et l'onglet Par élève a une colonne
   « 5 min chrono ».
+
+## Statistiques par classe
+
+- **Pour les élèves** : carte « Les classes en action » sur l'accueil : nombre d'élèves actifs (au moins une série)
+  cette semaine dans les classes de leur niveau qui ont travaillé (et la leur), avec le nombre de séries, leur rang et
+  ce qu'il manque pour passer devant la classe suivante. Aucun prénom. Remise à zéro chaque lundi.
+  Le script Google calcule ces totaux et les garde 10 minutes en mémoire.
+- **Pour le professeur** : onglet « Classes » de l'espace professeur : élèves actifs, séries, réussite moyenne et
+  « 5 minutes chrono » par classe, avec les filtres du haut (période, exerciseur…).
 
 ## Rappels de cours et rattrapage
 
@@ -339,6 +356,29 @@ La correction rappelle la règle des signes (ou le nombre de facteurs négatifs)
 Clavier : chiffres, signe − et virgule.
 Écriture : jamais « + (−5) » mais « − 5 », y compris dans les corrections ; les parenthèses seulement quand deux « moins »
 se suivent (3 − (−5)) et pour les facteurs négatifs d'un produit ou d'un quotient (9 × (−1,5)).
+
+### Programmes Scratch (4e et 3e, tuile Algorithmique)
+
+Les scripts sont dessinés avec les blocs de Scratch (couleurs des catégories), et il y a toujours un nombre à trouver.
+
+| Niveau | Contenu |
+|---|---|
+| ★ Programmes de calcul et hasard | ce que dit le lutin à la fin d'un programme de calcul ; compléter « nombre aléatoire entre … et … » pour simuler un dé, une carte, un jeton (un des deux nombres manque) |
+| ★★ Boucles et conditions | variable après « répéter … fois » ; doublement ; « si … alors … sinon » ; boucles imbriquées ; nombre de répétitions manquant |
+| ★★★ Tracer une figure | la figure est dessinée à côté du script (carré, triangle équilatéral, pentagone, hexagone, octogone, rectangle) ; compléter l'angle (360 ÷ n), le nombre de répétitions ou la longueur d'un côté ; parfois avec un bloc personnalisé « définir carré » |
+
+### Probabilités (3e, tuile Données et fonctions)
+
+Expériences à **une seule épreuve** (les expériences à deux épreuves ne sont plus au programme).
+
+| Niveau | Contenu |
+|---|---|
+| ★ Vocabulaire | expérience aléatoire ou non ; nombre d'issues d'un événement ; événement certain, impossible ou ni l'un ni l'autre ; événements incompatibles ; issues de l'événement contraire (QCM) |
+| ★★ Calculer une probabilité | dés et jetons numérotés (pair, premier, multiple de…, supérieur ou égal à…) ; urne de boules de couleurs ; jeu de 32 cartes ; événement contraire (1 − p) ; probabilité manquante (la somme vaut 1) |
+| ★★★ Raisonner | tableau à double entrée ; comparer une probabilité à un nombre ; on enlève des boules puis on recalcule ; quel événement a cette probabilité ? ; urne avec couleurs et numéros |
+
+Réponse en fraction ou en décimal (les deux sont acceptés) ; une fraction non simplifiée est acceptée avec un conseil.
+Les automatismes du brevet (partie Fonctions et données) proposent aussi ces questions de probabilités.
 
 ### Automatismes de 4e (4e seulement)
 

@@ -1019,7 +1019,290 @@
     }
   ];
   const AUTO4_PARTIES = [AUTO4_CALCUL, AUTO4_RELATIFS, AUTO4_FRACTIONS, AUTO4_PROPORTION, AUTO4_GRANDEURS, AUTO4_GEOMETRIE];
-  let THEMES_REL_MULT = () => null; // relié plus bas à l'exerciseur « Multiplier et diviser » (niveau ★)
+  let THEMES_REL_MULT = () => null;
+
+  /* ---------- Scratch : des scripts dessinés avec les blocs de Scratch, et toujours un nombre à trouver ---------- */
+  const SB = { ev: '#ffbf00', cap: '#5cb1d6', var: '#ff8c1a', look: '#9966ff', op: '#59c059', ctl: '#ffab19', mv: '#4c97ff', pen: '#0fbd8c', mes: '#ff6680' };
+  const sIn = (v) => '<span class="sb-in">' + v + '</span>';
+  const sTrou = '<span class="sb-in sb-trou">…</span>';
+  const sRep = (k, h) => '<span class="sb-rep" style="--k:' + SB[k] + '">' + h + '</span>';
+  const sVar = (n) => sRep('var', n);
+  const sOp = (a, o, b) => sRep('op', a + ' ' + o + ' ' + b);
+  const sBool = (a, o, b) => '<span class="sb-rep sb-bool" style="--k:' + SB.op + '">' + a + ' ' + o + ' ' + b + '</span>';
+  const sB = (k, h, cls) => '<div class="sb-b' + (cls ? ' ' + cls : '') + '" style="--k:' + SB[k] + '">' + h + '</div>';
+  const sHat = () => sB('ev', 'quand <span class="sb-drapeau" aria-label="drapeau vert">⚑</span> est cliqué', 'sb-hat');
+  const sDef = (nom) => sB('mes', 'définir <span class="sb-rep" style="--k:#ff4d6a">' + nom + '</span>', 'sb-hat sb-def');
+  const sC = (k, tete, dedans) => '<div class="sb-c" style="--k:' + SB[k] + '"><div class="sb-b">' + tete + '</div><div class="sb-dedans">' + dedans.join('') + '</div><div class="sb-pied"></div></div>';
+  const sSi = (cond, a, b) => '<div class="sb-c" style="--k:' + SB.ctl + '"><div class="sb-b">si ' + cond + ' alors</div><div class="sb-dedans">' + a.join('') + '</div><div class="sb-b sb-milieu">sinon</div><div class="sb-dedans">' + b.join('') + '</div><div class="sb-pied"></div></div>';
+  const script = (blocs) => '<div class="sb-script">' + blocs.join('') + '</div>';
+  const mettre = (v, h) => sB('var', 'mettre ' + sVar(v) + ' à ' + h);
+  const ajouter = (h, v) => sB('var', 'ajouter ' + h + ' à ' + sVar(v));
+  const dire = (h, sec) => sB('look', 'dire ' + h + (sec ? ' pendant ' + sIn(sec) + ' secondes' : ''));
+  const demander = () => sB('cap', 'demander ' + sIn('Choisis un nombre') + ' et attendre');
+  const reponse = () => sRep('cap', 'réponse');
+  const scratchQ = (enonce, r, texte, lignes, cat, opts) => Object.assign({ type: 'nombre', enonce, reponse: Q(r), prefixe: '… = ', clavier: '-', cat, correction: { texte, lignes } }, opts || {});
+  const POLY = { 3: ['triangle', 'un triangle équilatéral'], 4: ['carré', 'un carré'], 5: ['pentagone', 'un pentagone régulier'], 6: ['hexagone', 'un hexagone régulier'], 8: ['octogone', 'un octogone régulier'] };
+  function figurePoly(n, cote, legende) {
+    const R0 = 52, pts = [];
+    for (let k = 0; k < n; k++) { const a = Math.PI / 2 + Math.PI / n + 2 * Math.PI * k / n; pts.push([80 + R0 * Math.cos(a), 66 + R0 * Math.sin(a)]); }
+    const [p0, p1] = [pts[0], pts[1]], mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2 + 16;
+    return '<figure class="sb-fig"><svg viewBox="0 0 160 140" role="img" aria-label="' + esc0(legende) + '"><polygon points="' + pts.map((p) => p.map((x) => x.toFixed(1)).join(',')).join(' ') + '" fill="rgba(15,189,140,.12)" stroke="#0fbd8c" stroke-width="3" stroke-linejoin="round"/>' +
+      (cote ? '<text x="' + mx.toFixed(1) + '" y="' + Math.min(136, my).toFixed(1) + '" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">' + cote + '</text>' : '') + '</svg><figcaption>' + legende + '</figcaption></figure>';
+  }
+  const esc0 = (s) => String(s).replace(/<[^>]+>/g, '');
+  function figureRect(L, l, montrer) {
+    const w = 120, h = Math.max(36, Math.round(120 * l / L));
+    return '<figure class="sb-fig"><svg viewBox="0 0 176 ' + (h + 44) + '" role="img" aria-label="rectangle"><rect x="14" y="10" width="' + w + '" height="' + h + '" fill="rgba(15,189,140,.12)" stroke="#0fbd8c" stroke-width="3"/>' +
+      '<text x="74" y="' + (h + 28) + '" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">' + (montrer.L ? L + ' pas' : '?') + '</text>' +
+      '<text x="140" y="' + (10 + h / 2 + 4) + '" font-size="13" font-weight="700" fill="currentColor">' + (montrer.l ? l : '?') + '</text></svg><figcaption>un rectangle de ' + L + ' pas sur ' + l + ' pas</figcaption></figure>';
+  }
+  const enonceScratch = (txt, scr, fig) => '<p class="txt">' + txt + '</p><div class="sb-zone">' + scr + (fig || '') + '</div>';
+
+  // ★ Programmes de calcul et tirages aléatoires
+  const SCRATCH_1 = [
+    () => { // programme de calcul
+      const v = pick(['x', 'nombre']), n = rnd(2, 9) * (Math.random() < 0.15 ? -1 : 1), ops = [];
+      const choix = shuffle([['fois', rnd(2, 5)], ['plus', rnd(2, 12)], ['moins', rnd(2, 9)], ['carre', 0]]).slice(0, rnd(2, 3));
+      let x = n; const lignes = [{ m: v + ' = ' + num(n), c: 'On répond ' + num(n) + '.' }], blocs = [sHat(), demander(), mettre(v, reponse())];
+      choix.forEach(([op, k]) => {
+        if (op === 'fois') { x = x * k; blocs.push(mettre(v, sOp(sVar(v), '*', sIn(k)))); lignes.push({ m: v + ' = ' + num(x / k) + ' × ' + k + ' = ' + num(x) }); }
+        else if (op === 'plus') { x = x + k; blocs.push(ajouter(sIn(k), v)); lignes.push({ m: v + ' = ' + num(x - k) + ' + ' + k + ' = ' + num(x) }); }
+        else if (op === 'moins') { x = x - k; blocs.push(mettre(v, sOp(sVar(v), '-', sIn(k)))); lignes.push({ m: v + ' = ' + num(x + k) + ' ' + M + ' ' + k + ' = ' + num(x) }); }
+        else { const a = x; x = x * x; blocs.push(mettre(v, sOp(sVar(v), '*', sVar(v)))); lignes.push({ m: v + ' = ' + (a < 0 ? '(' + num(a) + ')' : a) + ' × ' + (a < 0 ? '(' + num(a) + ')' : a) + ' = ' + num(x) }); }
+      });
+      blocs.push(dire(sVar(v)));
+      return scratchQ(enonceScratch('On exécute ce programme et on répond <strong>' + num(n) + '</strong>. Quel nombre le lutin dit-il à la fin ?', script(blocs)), x,
+        'On suit le script de haut en bas, en mettant à jour la variable « ' + v + ' » à chaque bloc.', lignes, 'sc-calcul', { prefixe: 'Le lutin dit ' });
+    },
+    () => { // tirage aléatoire : compléter « nombre aléatoire entre … et … »
+      const [txt, a, b, v] = pick([['On lance un dé à 6 faces.', 1, 6, 'dé'], ['On lance un dé à 12 faces.', 1, 12, 'dé'], ['On tire au hasard une carte numérotée de 1 à 10.', 1, 10, 'carte'],
+        ['On tire au hasard un jeton numéroté de 1 à 20.', 1, 20, 'jeton'], ['On choisit au hasard un chiffre (de 0 à 9).', 0, 9, 'chiffre'], ['On tire une boule numérotée de 0 à 50.', 0, 50, 'boule'],
+        ['On fait tourner une roue partagée en 8 secteurs numérotés de 1 à 8.', 1, 8, 'secteur'], ['On tire au hasard un mois de l’année (numéros 1 à 12).', 1, 12, 'mois']]);
+      const manque = Math.random() < 0.5 ? 'a' : 'b';
+      const blocs = [sHat(), mettre(v, sRep('op', 'nombre aléatoire entre ' + (manque === 'a' ? sTrou : sIn(a)) + ' et ' + (manque === 'b' ? sTrou : sIn(b)))), dire(sVar(v), 2)];
+      return scratchQ(enonceScratch(txt + ' On veut que le lutin simule cette expérience. <strong>Quel nombre faut-il écrire à la place des pointillés ?</strong>', script(blocs)), manque === 'a' ? a : b,
+        '« nombre aléatoire entre a et b » donne un nombre entier au hasard de a à b, a et b compris.', [{ m: 'nombre aléatoire entre ' + a + ' et ' + b, c: 'Les résultats possibles vont de ' + a + ' à ' + b + '.' }], 'sc-alea');
+    }
+  ];
+  // ★★ Boucles et conditions
+  const SCRATCH_2 = [
+    () => { // compteur dans une boucle
+      const a = rnd(0, 10), n = rnd(3, 8), k = rnd(2, 9), v = pick(['compteur', 'score', 'total']);
+      return scratchQ(enonceScratch('Quel nombre le lutin dit-il à la fin de ce script ?', script([sHat(), mettre(v, sIn(a)), sC('ctl', 'répéter ' + sIn(n) + ' fois', [ajouter(sIn(k), v)]), dire(sVar(v))])), a + n * k,
+        'Le bloc à l’intérieur de « répéter » est fait ' + n + ' fois : on ajoute ' + n + ' fois ' + k + '.', [{ m: a + ' + ' + n + ' × ' + k + ' = ' + (a + n * k) }], 'sc-compteur', { prefixe: 'Le lutin dit ' });
+    },
+    () => { // doublement
+      const s = rnd(1, 5), n = rnd(2, 5), v = 'x';
+      const lignes = []; let x = s; for (let i = 1; i <= n; i++) { lignes.push({ m: 'tour ' + i + ' : ' + x + ' × 2 = ' + x * 2 }); x *= 2; }
+      return scratchQ(enonceScratch('Quel nombre le lutin dit-il à la fin de ce script ?', script([sHat(), mettre(v, sIn(s)), sC('ctl', 'répéter ' + sIn(n) + ' fois', [mettre(v, sOp(sVar(v), '*', sIn(2)))]), dire(sVar(v))])), x,
+        'À chaque tour de boucle, x est multiplié par 2.', lignes, 'sc-double', { prefixe: 'Le lutin dit ' });
+    },
+    () => { // si … alors … sinon
+      const s = rnd(5, 20), k = rnd(2, 5), k2 = rnd(3, 15), op = pick(['>', '<']);
+      let r0; do { r0 = rnd(1, 30); } while (r0 === s);
+      const vrai = op === '>' ? r0 > s : r0 < s, res = vrai ? r0 * k : r0 + k2;
+      const opH = op === '>' ? '&gt;' : '&lt;'; // le signe s'écrit en entité HTML
+      return scratchQ(enonceScratch('On répond <strong>' + r0 + '</strong>. Quel nombre le lutin dit-il ?', script([sHat(), demander(), sSi(sBool(reponse(), opH, sIn(s)), [dire(sOp(reponse(), '*', sIn(k)))], [dire(sOp(reponse(), '+', sIn(k2)))])])), res,
+        'On teste la condition : si elle est vraie, on fait seulement la partie « alors » ; sinon, seulement la partie « sinon ».',
+        [{ m: r0 + ' ' + opH + ' ' + s + ' est ' + (vrai ? 'vrai' : 'faux') }, { m: vrai ? r0 + ' × ' + k + ' = ' + res : r0 + ' + ' + k2 + ' = ' + res }], 'sc-si', { prefixe: 'Le lutin dit ' });
+    },
+    () => { // boucles imbriquées
+      const n = rnd(2, 5), m = rnd(2, 4);
+      return scratchQ(enonceScratch('Combien de fois le lutin dit-il « Bonjour ! » ?', script([sHat(), sC('ctl', 'répéter ' + sIn(n) + ' fois', [sC('ctl', 'répéter ' + sIn(m) + ' fois', [dire(sIn('Bonjour !'), 1)])])])), n * m,
+        'La boucle intérieure est faite ' + m + ' fois, à chacun des ' + n + ' tours de la boucle extérieure.', [{ m: n + ' × ' + m + ' = ' + n * m }], 'sc-imbrique', { prefixe: '', suffixe: 'fois' });
+    },
+    () => { // nombre de répétitions manquant
+      const k = rnd(2, 9), n = rnd(3, 9), v = 'total';
+      return scratchQ(enonceScratch('À la fin, le lutin dit <strong>' + n * k + '</strong>. <strong>Quel nombre faut-il écrire à la place des pointillés ?</strong>', script([sHat(), mettre(v, sIn(0)), sC('ctl', 'répéter ' + sTrou + ' fois', [ajouter(sIn(k), v)]), dire(sVar(v))])), n,
+        'Chaque tour de boucle ajoute ' + k + ' : on cherche combien de fois ' + k + ' font ' + n * k + '.', [{ m: n * k + ' ÷ ' + k + ' = ' + n }], 'sc-repet');
+    }
+  ];
+  // ★★★ Tracer une figure
+  const SCRATCH_3 = [
+    () => { // polygone régulier
+      const n = pick([3, 3, 4, 4, 5, 6, 6, 8]), L = pick([30, 40, 50, 60, 80, 100]), a = 360 / n, [nom, desc] = POLY[n], trou = pick(['angle', 'angle', 'repeter', 'cote']), perso = Math.random() < 0.5;
+      const corps = [sC('ctl', 'répéter ' + (trou === 'repeter' ? sTrou : sIn(n)) + ' fois', [sB('mv', 'avancer de ' + (trou === 'cote' ? sTrou : sIn(L)) + ' pas'), sB('mv', 'tourner ↻ de ' + (trou === 'angle' ? sTrou : sIn(a)) + ' degrés')])];
+      const scr = perso
+        ? script([sDef(nom), sB('pen', 'stylo en position d’écriture')].concat(corps)) + script([sHat(), sB('pen', 'effacer tout'), sB('mes', nom)])
+        : script([sHat(), sB('pen', 'effacer tout'), sB('pen', 'stylo en position d’écriture')].concat(corps));
+      const fig = figurePoly(n, trou === 'cote' ? '' : L + ' pas', desc + (trou === 'cote' ? ' de périmètre ' + n * L + ' pas' : ''));
+      const r = trou === 'angle' ? a : trou === 'repeter' ? n : L;
+      const texte = trou === 'angle' ? 'À chaque sommet, le lutin tourne de l’angle extérieur : 360° ÷ ' + n + ' = ' + a + '°.' + (n === 3 ? ' Attention : pour un triangle équilatéral, c’est 120°, et non 60° (l’angle intérieur).' : '')
+        : trou === 'repeter' ? desc.charAt(0).toUpperCase() + desc.slice(1) + ' a ' + n + ' côtés : on répète ' + n + ' fois « avancer, tourner ».' : 'Les ' + n + ' côtés ont la même longueur : on divise le périmètre par ' + n + '.';
+      const lignes = trou === 'angle' ? [{ m: '360 ÷ ' + n + ' = ' + a }] : trou === 'repeter' ? [{ m: n + ' côtés, donc ' + n + ' répétitions', c: 'Vérification : ' + n + ' × ' + a + '° = 360°.' }] : [{ m: n * L + ' ÷ ' + n + ' = ' + L }];
+      return scratchQ(enonceScratch('On veut que le lutin trace la figure ci-contre. <strong>Quel nombre faut-il écrire à la place des pointillés ?</strong>', scr, fig), r, texte, lignes, 'sc-poly-' + trou);
+    },
+    () => { // rectangle
+      const L = pick([60, 80, 100, 120]), l = pick([30, 40, 50]), trou = pick(['l', 'angle', 'repeter']);
+      const corps = sC('ctl', 'répéter ' + (trou === 'repeter' ? sTrou : sIn(2)) + ' fois', [sB('mv', 'avancer de ' + sIn(L) + ' pas'), sB('mv', 'tourner ↻ de ' + (trou === 'angle' ? sTrou : sIn(90)) + ' degrés'),
+        sB('mv', 'avancer de ' + (trou === 'l' ? sTrou : sIn(l)) + ' pas'), sB('mv', 'tourner ↻ de ' + sIn(90) + ' degrés')]);
+      const r = trou === 'l' ? l : trou === 'angle' ? 90 : 2;
+      return scratchQ(enonceScratch('On veut que le lutin trace la figure ci-contre. <strong>Quel nombre faut-il écrire à la place des pointillés ?</strong>', script([sHat(), sB('pen', 'effacer tout'), sB('pen', 'stylo en position d’écriture'), corps]), figureRect(L, l, { L: true, l: true })), r,
+        trou === 'l' ? 'Le script trace une longueur, puis une largeur : la largeur du rectangle est ' + l + ' pas.' : trou === 'angle' ? 'Les angles d’un rectangle sont droits : le lutin tourne de 90°.' : 'Un tour de boucle trace une longueur et une largeur : il en faut 2 pour fermer le rectangle.',
+        [{ m: trou === 'l' ? 'largeur = ' + l : trou === 'angle' ? 'angle = 90' : '2 × (longueur + largeur) = périmètre' }], 'sc-rect-' + trou);
+    }
+  ];
+
+  /* ---------- Probabilités (une seule épreuve, situations d'équiprobabilité) ---------- */
+  const estPrem = (n) => { if (n < 2) return false; for (let k = 2; k * k <= n; k++) if (n % k === 0) return false; return true; };
+  const ens = (L) => '{' + L.join(' ; ') + '}';
+  const frP = (a, b) => { const q = Q(a, b); return F(a, b) + (q.d !== b && a !== 0 ? ' = ' + (q.d === 1 ? q.n : F(q.n, q.d)) : ''); };
+  // Réponse : fraction ou décimal (les deux sont acceptés) ; une fraction non simplifiée est acceptée avec un conseil
+  const probQ = (enonce, a, b, texte, lignes, cat, opts) => Object.assign({ type: 'nombre', enonce: pt(enonce), reponse: Q(a, b), prefixe: 'p = ', clavier: '/,', irreductible: 'conseil', cat, correction: { texte, lignes } }, opts || {});
+  const probDecQ = (enonce, x, texte, lignes, cat) => ({ type: 'nombre', decimal: true, enonce: pt(enonce), reponse: decQ(rr(x)), prefixe: 'p = ', clavier: '/,', cat, correction: { texte, lignes } });
+  const FORMULE = 'p = nombre d’issues réalisant l’événement ÷ nombre total d’issues.';
+  // Événements sur des nombres de 1 à n
+  const EVTS_N = [
+    { nom: 'obtenir un nombre pair', f: (x) => x % 2 === 0 },
+    { nom: 'obtenir un nombre impair', f: (x) => x % 2 === 1 },
+    { nom: 'obtenir un nombre premier', f: estPrem },
+    { m: 3 }, { m: 4 }, { m: 5 },
+    { sup: true }, { inf: true }, { egal: true }
+  ];
+  function evtN(n) {
+    const e = pick(EVTS_N);
+    if (e.m) return { nom: 'obtenir un multiple de ' + e.m, f: (x) => x % e.m === 0 };
+    if (e.sup) { const k = rnd(2, n - 1); return { nom: 'obtenir un nombre supérieur ou égal à ' + k, f: (x) => x >= k, k, type: 'sup' }; }
+    if (e.inf) { const k = rnd(2, n - 1); return { nom: 'obtenir un nombre inférieur à ' + k, f: (x) => x < k, k, type: 'inf' }; }
+    if (e.egal) { const k = rnd(1, n); return { nom: 'obtenir le numéro ' + k, f: (x) => x === k }; }
+    return e;
+  }
+  const SUPPORTS = [
+    (n) => 'On lance un dé équilibré à ' + n + ' faces numérotées de 1 à ' + n + '.',
+    (n) => 'Un sac opaque contient ' + n + ' jetons indiscernables au toucher, numérotés de 1 à ' + n + '. On tire un jeton au hasard.',
+    (n) => 'Une roue est partagée en ' + n + ' secteurs identiques numérotés de 1 à ' + n + '. On la fait tourner.'
+  ];
+  const COULEURS = [['rouge', 'rouges'], ['verte', 'vertes'], ['bleue', 'bleues'], ['noire', 'noires'], ['jaune', 'jaunes'], ['blanche', 'blanches']];
+  const urne = (k) => shuffle(COULEURS.slice()).slice(0, k).map(([s1, pl]) => ({ s1, pl, n: rnd(1, 7) }));
+  const urneTxt = (U) => U.map((c, i) => (i === U.length - 1 && i ? 'et ' : '') + c.n + ' boule' + (c.n > 1 ? 's ' + c.pl : ' ' + c.s1)).join(', ').replace(', et', ' et');
+  const CARTES = [
+    ['obtenir l’as de pique', 1, 'Il n’y a qu’un as de pique.'], ['obtenir un 10', 4, 'Il y a un 10 dans chacune des 4 familles.'], ['obtenir un as', 4, 'Il y a un as dans chacune des 4 familles.'],
+    ['obtenir un roi noir (pique ou trèfle)', 2, 'Le roi de pique et le roi de trèfle.'], ['obtenir une carte rouge (cœur ou carreau)', 16, '2 familles de 8 cartes : 16 cartes rouges.'],
+    ['obtenir un cœur', 8, 'Une famille compte 8 cartes.'], ['obtenir une figure (valet, dame ou roi)', 12, '3 figures dans chacune des 4 familles.'], ['obtenir une dame rouge', 2, 'La dame de cœur et la dame de carreau.']
+  ];
+
+  // ★ Vocabulaire
+  const ALEA_OUI = ['Lancer un dé à 6 faces', 'Tirer une carte d’un jeu de 32 cartes', 'Choisir un mois au hasard dans l’année', 'Faire tourner une roue numérotée de 1 à 12', 'Jouer à pile ou face', 'Tirer au sort le prénom d’un élève de la classe', 'Choisir un livre au hasard dans une bibliothèque', 'Jouer au loto'];
+  const ALEA_NON = ['Mesurer la masse exacte d’une bouteille de lait', 'Prendre la taille d’un élève avec un mètre', 'Compter le nombre d’élèves présents en classe', 'Faire tomber un objet', 'Calculer 12 × 5', 'Lire l’heure sur une horloge', 'Faire bouillir de l’eau'];
+  const PROBA_VOCA = [
+    () => { // expérience aléatoire ou non
+      const oui = Math.random() < 0.5, x = pick(oui ? ALEA_OUI : ALEA_NON);
+      return qcmQ('« <strong>' + x + '</strong> » : est-ce une expérience aléatoire ?', ['Oui', 'Non'], oui ? 0 : 1,
+        'Une expérience est aléatoire quand on connaît les résultats possibles, mais qu’on ne peut pas savoir à l’avance lequel va se produire.', [{ m: oui ? 'Oui : le résultat dépend du hasard.' : 'Non : le résultat est connu ou se mesure, il ne dépend pas du hasard.' }], 'Choisis :');
+    },
+    () => { // nombre d'issues d'un événement
+      const n = pick([6, 8, 10, 12]), e = evtN(n), L = Array.from({ length: n }, (_, i) => i + 1).filter(e.f);
+      return Object.assign(probQ(SUPPORTS[0](n) + ' Combien d’issues réalisent l’événement « <strong>' + e.nom + '</strong> » ?', L.length, 1,
+        'On écrit toutes les issues qui réalisent l’événement.', [{ m: ens(L) + ' : ' + L.length + ' issue' + (L.length > 1 ? 's' : '') }], 'p-issues'), { prefixe: '', suffixe: 'issue(s)', clavier: '' });
+    },
+    () => { // certain, impossible, ni l'un ni l'autre
+      const n = pick([6, 8, 12]), k = pick(['certain', 'impossible', 'ni']);
+      const E = { certain: ['obtenir un nombre entier', 'obtenir un nombre inférieur ou égal à ' + n, 'obtenir un nombre plus grand que 0'],
+        impossible: ['obtenir ' + (n + 1), 'obtenir 0', 'obtenir un nombre supérieur à ' + n], ni: ['obtenir un nombre pair', 'obtenir un multiple de 3', 'obtenir ' + rnd(1, n)] }[k];
+      const opts = ['un événement certain', 'un événement impossible', 'ni l’un ni l’autre'];
+      return qcmQ(SUPPORTS[0](n) + ' L’événement « <strong>' + pick(E) + '</strong> » est…', opts, ['certain', 'impossible', 'ni'].indexOf(k),
+        'Certain : il se produit à coup sûr (probabilité 1). Impossible : il ne peut pas se produire (probabilité 0).', [{ m: 'Les issues sont 1, 2, …, ' + n + '.' }], 'Choisis :');
+    },
+    () => { // incompatibles
+      const n = pick([6, 8, 10, 12]); let a, b, A, B;
+      do { a = evtN(n); b = evtN(n); A = Array.from({ length: n }, (_, i) => i + 1).filter(a.f); B = Array.from({ length: n }, (_, i) => i + 1).filter(b.f); } while (a.nom === b.nom || !A.length || !B.length);
+      const comm = A.filter((x) => B.includes(x));
+      return qcmQ(SUPPORTS[0](n) + ' Les événements « <strong>' + a.nom + '</strong> » et « <strong>' + b.nom + '</strong> » sont-ils incompatibles ?', ['Oui', 'Non'], comm.length ? 1 : 0,
+        'Deux événements sont incompatibles s’ils ne peuvent pas se réaliser en même temps : aucune issue commune.', [{ m: ens(A) + ' et ' + ens(B) }, { m: comm.length ? 'Issue(s) commune(s) : ' + comm.join(' ; ') + ' : non, ils ne sont pas incompatibles.' : 'Aucune issue commune : ils sont incompatibles.' }], 'Choisis :');
+    },
+    () => { // issues réalisant l'événement contraire
+      const n = pick([6, 8, 10]); let e, L; do { e = evtN(n); L = Array.from({ length: n }, (_, i) => i + 1).filter(e.f); } while (!L.length || L.length === n);
+      const tous = Array.from({ length: n }, (_, i) => i + 1), C = tous.filter((x) => !e.f(x));
+      const faux1 = L, faux2 = C.length > 1 ? C.slice(0, -1) : tous, faux3 = tous;
+      const opts = [ens(C), ens(faux1), ens(faux2), ens(faux3)].filter((o, i, t) => t.indexOf(o) === i);
+      return qcmQ(SUPPORTS[0](n) + ' Quelles issues réalisent l’<strong>événement contraire</strong> de « ' + e.nom + ' » ?', opts, 0,
+        'L’événement contraire se réalise quand l’événement ne se réalise pas : ce sont toutes les autres issues.', [{ m: 'Événement : ' + ens(L) }, { m: 'Contraire : ' + ens(C) }], 'Choisis :');
+    }
+  ];
+
+  // ★★ Calculer une probabilité
+  const PROBA_CALCUL = [
+    () => { // nombres de 1 à n
+      const n = pick([6, 8, 10, 12, 20]), e = evtN(n), L = Array.from({ length: n }, (_, i) => i + 1).filter(e.f);
+      return probQ(pick(SUPPORTS)(n) + ' Quelle est la probabilité de l’événement « <strong>' + e.nom + '</strong> » ?', L.length, n, FORMULE,
+        [{ m: 'Issues favorables : ' + (L.length ? ens(L) : 'aucune') + ' : ' + L.length + ' issue' + (L.length > 1 ? 's' : '') + ' sur ' + n }, { m: 'p = ' + frP(L.length, n) }], 'p-nombres');
+    },
+    () => { // urne de boules de couleurs
+      const U = urne(rnd(2, 4)), tot = U.reduce((x, c) => x + c.n, 0), k = pick(['une', 'une', 'ou', 'pas']), c = pick(U);
+      let evt, fav;
+      if (k === 'ou' && U.length > 2) { const d = pick(U.filter((x) => x !== c)); evt = 'tirer une boule ' + c.s1 + ' ou ' + d.s1; fav = c.n + d.n; }
+      else if (k === 'pas') { evt = 'ne pas tirer une boule ' + c.s1; fav = tot - c.n; }
+      else { evt = 'tirer une boule ' + c.s1; fav = c.n; }
+      return probQ('Un sac opaque contient ' + urneTxt(U) + ', indiscernables au toucher. On tire une boule au hasard. Quelle est la probabilité de « <strong>' + evt + '</strong> » ?', fav, tot, FORMULE,
+        [{ m: 'Nombre total de boules : ' + U.map((x) => x.n).join(' + ') + ' = ' + tot }, { m: 'Issues favorables : ' + fav }, { m: 'p = ' + frP(fav, tot) }], 'p-urne-' + k);
+    },
+    () => { // jeu de 32 cartes
+      const [evt, fav, expl] = pick(CARTES);
+      return probQ('On tire au hasard une carte dans un jeu de <strong>32 cartes</strong> (4 familles : pique, cœur, carreau, trèfle ; dans chacune : 7, 8, 9, 10, valet, dame, roi, as). Quelle est la probabilité de « <strong>' + evt + '</strong> » ?', fav, 32, FORMULE + ' ' + expl,
+        [{ m: 'p = ' + frP(fav, 32) }], 'p-cartes');
+    },
+    () => { // événement contraire
+      if (Math.random() < 0.5) { const p0 = rnd(5, 95) / 100; return probDecQ('La probabilité d’un événement A est p(A) = <strong>' + dfmt(p0) + '</strong>. Quelle est la probabilité de l’événement contraire Ā ?', 1 - p0, 'p(Ā) = 1 ' + M + ' p(A).', [{ m: 'p(Ā) = 1 ' + M + ' ' + dfmt(p0) + ' = ' + dfmt(rr(1 - p0)) }], 'p-contraire-dec'); }
+      const [a, b] = fracIrrA(12); const a2 = a < b ? a : b - 1 || 1;
+      return probQ('La probabilité d’un événement A est p(A) = <strong>' + F(a2, b) + '</strong>. Quelle est la probabilité de l’événement contraire Ā ?', b - a2, b, 'p(Ā) = 1 ' + M + ' p(A).',
+        [{ m: 'p(Ā) = 1 ' + M + ' ' + F(a2, b) + ' = ' + F(b, b) + ' ' + M + ' ' + F(a2, b) + ' = ' + frP(b - a2, b) }], 'p-contraire-frac');
+    },
+    () => { // probabilité manquante : la somme vaut 1
+      const k = rnd(3, 4), parts = []; let reste = 100;
+      for (let i = 0; i < k - 1; i++) { const v = 5 * rnd(1, Math.max(1, Math.floor((reste - 5 * (k - i - 1)) / 5 / 1.6))); parts.push(v); reste -= v; }
+      parts.push(reste);
+      const noms = shuffle(['rouge', 'bleu', 'vert', 'jaune', 'orange']).slice(0, k);
+      return probDecQ('Une roue est partagée en secteurs de couleurs. Voici les probabilités : ' + noms.slice(0, -1).map((c, i) => 'p(' + c + ') = ' + dfmt(parts[i] / 100)).join(' ; ') + '. La roue n’a pas d’autre couleur que ' + noms.join(', ') + '. Quelle est la probabilité de <strong>' + noms[k - 1] + '</strong> ?', reste / 100,
+        'La somme des probabilités de toutes les issues vaut 1.', [{ m: 'p(' + noms[k - 1] + ') = 1 ' + M + ' (' + parts.slice(0, -1).map((v) => dfmt(v / 100)).join(' + ') + ')' }, { m: '= 1 ' + M + ' ' + dfmt(rr(1 - reste / 100)) + ' = ' + dfmt(reste / 100) }], 'p-manquante');
+    }
+  ];
+
+  // ★★★ Raisonner (type contrôle)
+  const PROBA_RAISON = [
+    () => { // tableau à double entrée
+      const ctx = pick([
+        { titre: 'Dans un collège, on a interrogé des élèves de 3e.', l: ['Filles', 'Garçons'], c: ['Demi-pensionnaires', 'Externes'], qui: 'élève' },
+        { titre: 'Un hôtel accueille des touristes.', l: ['Parlent anglais', 'Ne parlent pas anglais'], c: ['Français', 'Étrangers'], qui: 'touriste' },
+        { titre: 'Un club de sport compte des adhérents.', l: ['Moins de 15 ans', '15 ans et plus'], c: ['Football', 'Natation'], qui: 'adhérent' }
+      ]);
+      const v = [[rnd(3, 30), rnd(3, 30)], [rnd(3, 30), rnd(3, 30)]], L = [v[0][0] + v[0][1], v[1][0] + v[1][1]], Cc = [v[0][0] + v[1][0], v[0][1] + v[1][1]], T = L[0] + L[1];
+      const tab = '<table class="tab-proba"><tr><th></th><th>' + ctx.c[0] + '</th><th>' + ctx.c[1] + '</th><th>Total</th></tr>' +
+        ctx.l.map((x, i) => '<tr><th>' + x + '</th><td>' + v[i][0] + '</td><td>' + v[i][1] + '</td><td>' + L[i] + '</td></tr>').join('') +
+        '<tr><th>Total</th><td>' + Cc[0] + '</td><td>' + Cc[1] + '</td><td>' + T + '</td></tr></table>';
+      const k = pick(['case', 'ligne', 'colonne']), i = rnd(0, 1), j = rnd(0, 1);
+      const evt = k === 'case' ? ctx.l[i] + ' et ' + ctx.c[j].toLowerCase() : k === 'ligne' ? ctx.l[i] : ctx.c[j];
+      const fav = k === 'case' ? v[i][j] : k === 'ligne' ? L[i] : Cc[j];
+      return probQ(ctx.titre + ' On choisit un ' + ctx.qui + ' au hasard. Quelle est la probabilité qu’il fasse partie de la catégorie « <strong>' + evt + '</strong> » ?</p>' + tab + '<p class="txt">', fav, T,
+        'On lit dans le tableau : ' + fav + ' ' + ctx.qui + 's concernés sur ' + T + ' au total.', [{ m: 'p = ' + frP(fav, T) }], 'p-tableau-' + k);
+    },
+    () => { // comparer à un nombre
+      const n = pick([8, 10, 12, 20]); let e, L; do { e = evtN(n); L = Array.from({ length: n }, (_, i) => i + 1).filter(e.f); } while (!L.length || L.length === n);
+      const p0 = L.length / n; let x; do { x = pick([0.2, 0.25, 0.3, 0.4, 0.5, 0.6]); } while (Math.abs(x - p0) < 1e-9);
+      return qcmQ(SUPPORTS[1](n) + ' La probabilité de « <strong>' + e.nom + '</strong> » est-elle supérieure à <strong>' + dfmt(x) + '</strong> ?', ['Oui', 'Non'], p0 > x ? 0 : 1, 'On calcule la probabilité, puis on la compare (on peut l’écrire en nombre décimal).',
+        [{ m: 'Issues favorables : ' + ens(L) }, { m: 'p = ' + F(L.length, n) + ' = ' + dfmt(rr(p0)) + (Number.isInteger(p0 * 100) ? '' : '…') + (p0 > x ? ' &gt; ' : ' &lt; ') + dfmt(x) }], 'Choisis :');
+    },
+    () => { // on retire des jetons, puis on recalcule
+      const n = pick([10, 12, 15, 20]), m = pick([3, 4, 5]), tous = Array.from({ length: n }, (_, i) => i + 1), reste = tous.filter((x) => x % m !== 0);
+      const e = pick([{ nom: 'obtenir un nombre premier', f: estPrem }, { nom: 'obtenir un nombre pair', f: (x) => x % 2 === 0 }, { nom: 'obtenir un nombre impair', f: (x) => x % 2 === 1 }]);
+      const L = reste.filter(e.f);
+      return probQ('Une urne contient ' + n + ' boules numérotées de 1 à ' + n + '. On <strong>enlève tous les multiples de ' + m + '</strong>, puis on tire une boule au hasard. Quelle est la probabilité de « <strong>' + e.nom + '</strong> » ?', L.length, reste.length,
+        'On compte d’abord les boules qui restent, puis les issues favorables parmi elles.', [{ m: 'Il reste ' + reste.length + ' boules : ' + ens(reste) }, { m: 'Issues favorables : ' + ens(L) }, { m: 'p = ' + frP(L.length, reste.length) }], 'p-retire');
+    },
+    () => { // quel événement a cette probabilité ? (dé à 6 faces)
+      const E = [['obtenir 4', '1/6'], ['obtenir un nombre pair', '1/2'], ['obtenir un multiple de 3', '1/3'], ['obtenir un nombre inférieur à 5', '2/3'], ['obtenir 7', '0'], ['obtenir un nombre inférieur à 7', '1'], ['obtenir un nombre supérieur ou égal à 5', '1/3']];
+      const cible = pick(E.slice(0, 6)), autres = shuffle(E.filter((x) => x[1] !== cible[1])).filter((x, i, t) => t.findIndex((y) => y[1] === x[1]) === i).slice(0, 3);
+      const aff = (p0) => (p0.includes('/') ? F(p0.split('/')[0], p0.split('/')[1]) : p0);
+      return qcmQ('On lance un dé équilibré à 6 faces. Quel événement a une probabilité égale à <strong>' + aff(cible[1]) + '</strong> ?', [cible[0]].concat(autres.map((x) => x[0])), 0,
+        'On calcule la probabilité de chaque événement.', [cible].concat(autres).map((x) => ({ m: '« ' + x[0] + ' » : ' + aff(x[1]) })), 'Choisis :');
+    },
+    () => { // couleurs et numéros (comme l'exercice 7 de la fiche)
+      const a = rnd(3, 6), b = rnd(4, 8), c = rnd(5, 10), T = a + b + c, k = pick(['couleur', 'numero', 'numero']);
+      if (k === 'couleur') { const [nom, f] = pick([['blanche', a], ['noire', b], ['grise', c]]); return probQ('Une urne contient ' + a + ' boules blanches numérotées de 1 à ' + a + ', ' + b + ' boules noires numérotées de 1 à ' + b + ' et ' + c + ' boules grises numérotées de 1 à ' + c + '. On tire une boule au hasard. Quelle est la probabilité de « <strong>tirer une boule ' + nom + '</strong> » ?', f, T, FORMULE, [{ m: 'Nombre total de boules : ' + a + ' + ' + b + ' + ' + c + ' = ' + T }, { m: 'p = ' + frP(f, T) }], 'p-couleurs'); }
+      const num = rnd(1, c), f = [a, b, c].filter((x) => num <= x).length;
+      return probQ('Une urne contient ' + a + ' boules blanches numérotées de 1 à ' + a + ', ' + b + ' boules noires numérotées de 1 à ' + b + ' et ' + c + ' boules grises numérotées de 1 à ' + c + '. On tire une boule au hasard. Quelle est la probabilité de « <strong>tirer une boule portant le numéro ' + num + '</strong> » ?', f, T, FORMULE,
+        [{ m: 'Boules portant le numéro ' + num + ' : ' + f + ' (une par couleur qui va jusqu’à ' + num + ')' }, { m: 'Nombre total de boules : ' + T }, { m: 'p = ' + frP(f, T) }], 'p-numeros');
+    }
+  ]; // relié plus bas à l'exerciseur « Multiplier et diviser » (niveau ★)
 
   const THEMES = [
     /* ---------------- Automatismes du brevet ---------------- */
@@ -1034,6 +1317,28 @@
         { nom: 'Fonctions et données', court: 'Fonctions', gen: () => pick(AUTO_FONCTIONS)() },
         { nom: 'Géométrie', court: 'Géométrie', gen: () => pick(AUTO_GEOMETRIE)() },
         { nom: 'Tout mélangé', court: 'Mélange', gen: () => pick(pick(AUTO_PARTIES))() }
+      ]
+    },
+    {
+      id: 'scratch', classes: ['4e', '3e'], domaine: 'Scratch',
+      titre: 'Programmes Scratch',
+      resume: 'Lire un script, compléter un bloc, prévoir ce que dit le lutin ou ce qu’il trace.',
+      consigne: 'Scratch', clavier: '-',
+      niveaux: [
+        { nom: 'Programmes de calcul et hasard', gen: () => pick(SCRATCH_1)() },
+        { nom: 'Boucles et conditions', gen: () => pick(SCRATCH_2)() },
+        { nom: 'Tracer une figure', gen: () => pick(SCRATCH_3)() }
+      ]
+    },
+    {
+      id: 'probabilites', classes: ['3e'], domaine: 'Probabilités',
+      titre: 'Probabilités',
+      resume: 'Vocabulaire, calculer une probabilité, événement contraire, tableaux : expériences à une épreuve.',
+      consigne: 'Probabilités', clavier: '/,',
+      niveaux: [
+        { nom: 'Vocabulaire', gen: () => Object.assign(pick(PROBA_VOCA)(), { consigne: 'Vocabulaire' }) },
+        { nom: 'Calculer une probabilité', gen: () => pick(PROBA_CALCUL)() },
+        { nom: 'Raisonner', gen: () => pick(PROBA_RAISON)() }
       ]
     },
     {
@@ -1528,7 +1833,21 @@
     niv: { 2: p('Soustraire un nombre, c’est ajouter son opposé.') + ex('3 ' + M + ' (' + M + '5) = 3 + 5 = 8'),
       3: p('On regroupe les nombres positifs et les nombres négatifs.') + ex('4 ' + M + ' (' + M + '6) ' + M + ' 9 + 2 = 4 + 6 ' + M + ' 9 + 2 = 12 ' + M + ' 9 = 3') } };
   THEMES.forEach((t) => { if (COURS[t.id]) t.cours = COURS[t.id]; });
-  const mult = THEMES.find((t) => t.id === 'multiplier-relatifs'); THEMES_REL_MULT = () => mult.niveaux[0].gen();
+  COURS.probabilites = { base: '<p class="regles">p(A) = ' + F('nombre d’issues réalisant A', 'nombre total d’issues') + '</p>' + p('(quand toutes les issues ont la même probabilité)') +
+      p('Une probabilité est comprise entre 0 et 1. Événement impossible : 0. Événement certain : 1.') + p('La somme des probabilités de toutes les issues vaut 1.') + p('<b>p(Ā) = 1 ' + M + ' p(A)</b>') +
+      ex('Sac de 2 rouges, 3 vertes, 5 bleues : p(verte) = ' + F(3, 10)),
+    niv: { 1: p('Incompatibles : ils ne peuvent pas se réaliser en même temps (aucune issue commune).') + p('Contraire Ā : il se réalise quand A ne se réalise pas.'),
+      3: p('Tableau à double entrée : p = ' + F('effectif concerné', 'effectif total') + '.') } };
+  THEMES.find((t) => t.id === 'probabilites').cours = COURS.probabilites;
+  THEMES.find((t) => t.id === 'scratch').cours = { base: p('Un script se lit de haut en bas, bloc par bloc. Une variable garde un nombre : « mettre x à … » le remplace, « ajouter … à x » l’augmente.'),
+    niv: { 1: p('<b>nombre aléatoire entre a et b</b> : un nombre entier au hasard de a à b, a et b compris.') + ex('dé à 6 faces : nombre aléatoire entre 1 et 6'),
+      2: p('<b>répéter n fois</b> : les blocs à l’intérieur sont faits n fois.') + p('<b>si … alors … sinon</b> : si la condition est vraie, on fait la partie « alors », sinon la partie « sinon ».'),
+      3: p('Polygone régulier à n côtés : <b>répéter n fois</b> « avancer de (côté) ; tourner de <b>360 ÷ n</b> degrés ».') + ex('triangle équilatéral : 120° ; carré : 90° ; hexagone : 60°') } };
+  // un « type » pour chaque question en QCM (variété dans une série)
+  [[PROBA_VOCA, 'p-voca'], [PROBA_RAISON, 'p-raison']].forEach(([L, nom]) => L.forEach((g, i) => { L[i] = () => Object.assign({ cat: nom + i }, g()); }));
+  const mult = THEMES.find((t) => t.id === 'multiplier-relatifs');
+  // quelques questions de probabilités en plus dans les automatismes du brevet (partie Fonctions et données)
+  AUTO_FONCTIONS.push(() => { const [g, c] = pick([[PROBA_CALCUL[0], 'nombres'], [PROBA_CALCUL[3], 'contraire'], [PROBA_CALCUL[2], 'cartes'], [PROBA_RAISON[0], 'tableau']]); return auto(g(), 'p-auto-' + c, 'Probabilités'); }); THEMES_REL_MULT = () => mult.niveaux[0].gen();
   const auto4 = THEMES.find((t) => t.id === 'automatismes-4e'); if (auto4) auto4.rattrapage = true;
   const auto0 = THEMES.find((t) => t.id === 'automatismes'); if (auto0) auto0.rattrapage = true; // question de rattrapage après une erreur
 

@@ -134,7 +134,10 @@
       const i = b.lastIndexOf(':'), id = b.slice(0, i), l = +b.slice(i + 1), v = srv.best[b], cur = getBest(id, l);
       if (!cur || v[0] / v[1] > cur.s / cur.t) setBest(id, l, { s: v[0], t: v[1] });
     });
-    if (srv.vies != null && !file.some((x) => cleMoi(x) === cleMoi(m))) setViesBonus(srv.vies);
+    if (!file.some((x) => cleMoi(x) === cleMoi(m))) { // rien en attente pour cet élève : le tableur fait foi
+      if (srv.vies != null) setViesBonus(srv.vies);
+      if (srv.jeu) store.set('jeu:' + idEleve(), { d: srv.jeu.d || '', libres: srv.jeu.libres || 0, gagnees: srv.jeu.gagnees || 0 });
+    }
     if (srv.rec) ['normal', 'expert'].forEach((md) => { const c = 'record:' + md + ':' + idEleve(); if ((srv.rec[md] || 0) > store.get(c, 0)) store.set(c, srv.rec[md]); });
     if (srv.av || srv.craie != null) {
       const pr = getPrefs(m);
@@ -177,9 +180,27 @@
       .then((r) => r.json()).then((j) => {
         if (!j || !j.ok) return;
         if (j.conseils) store.set('conseils', j.conseils);
+        if (j.classes) store.set('statsClasses', { semaine: lundiDe(), c: j.classes });
         if (moi && j.profil) appliquerProfil(moi, j.profil, store.get('file', []));
         apres();
       }).catch(() => { /* hors connexion : on garde ce qu'on a */ });
+  }
+  // « Les classes en action » : élèves actifs cette semaine dans les classes du niveau (seulement celles qui ont travaillé, et la sienne)
+  function htmlStatsClasses(niveau) {
+    const st = store.get('statsClasses', null), moi = getMoi();
+    if (!st || st.semaine !== lundiDe() || !moi) return '';
+    const mienne = moi.classe, L = Object.keys(st.c).filter((c) => c.startsWith(niveau) && (st.c[c][0] > 0 || c === mienne)).map((c) => ({ c, a: st.c[c][0], s: st.c[c][1] }));
+    if (mienne.startsWith(niveau) && !L.some((x) => x.c === mienne)) L.push({ c: mienne, a: 0, s: 0 });
+    if (!L.some((x) => x.a > 0)) return '';
+    L.sort((x, y) => y.a - x.a || y.s - x.s || x.c.localeCompare(y.c, 'fr', { numeric: true }));
+    const max = Math.max(...L.map((x) => x.a)), totA = L.reduce((t, x) => t + x.a, 0), totS = L.reduce((t, x) => t + x.s, 0);
+    const moiL = L.find((x) => x.c === mienne), rang = moiL ? L.indexOf(moiL) + 1 : 0, devant = rang > 1 ? L[rang - 2] : null;
+    const msg = !moiL ? '' : moiL.a === 0 ? 'Ta classe n’a encore personne cette semaine : sois le premier !'
+      : rang === 1 ? (L.length > 1 ? 'Ta classe est en tête ! Ne lâchez rien.' : 'Ta classe est la seule à s’entraîner cette semaine : bravo !')
+      : 'Ta classe est ' + rang + 'e sur ' + L.length + '. Encore ' + (devant.a - moiL.a + 1) + ' élève' + (devant.a - moiL.a + 1 > 1 ? 's' : '') + ' actif' + (devant.a - moiL.a + 1 > 1 ? 's' : '') + ' pour passer devant la ' + esc(devant.c) + ' !';
+    return '<section class="card stats-cl"><h2>Les classes en action</h2><p class="stats-tot"><b>' + totA + '</b> élève' + (totA > 1 ? 's' : '') + ' de ' + niveau + ' ' + (totA > 1 ? 'ont' : 'a') + ' fait <b>' + totS + '</b> série' + (totS > 1 ? 's' : '') + ' cette semaine</p>' +
+      '<div class="sc-barres">' + L.map((x) => '<div class="sc-ligne' + (x.c === mienne ? ' moi' : '') + '"><span class="sc-nom">' + esc(x.c) + '</span><span class="sc-barre"><i style="width:' + (x.a ? Math.max(6, x.a / max * 100) : 0) + '%"></i></span><span class="sc-val"><b>' + x.a + '</b> <small>' + x.s + ' série' + (x.s > 1 ? 's' : '') + '</small></span></div>').join('') + '</div>' +
+      (msg ? '<p class="stats-msg">' + msg + '</p>' : '') + '<p class="stats-note">Élèves actifs : au moins une série cette semaine. Remise à zéro chaque lundi.</p></section>';
   }
   function htmlConseils(niveau) {
     const liste = (store.get('conseils', {})[niveau] || []).map((c) => ({ t: THEMES.find((x) => x.id === c.id && x.classes.includes(niveau)), l: c.l })).filter((c) => c.t && c.t.niveaux[c.l - 1]);
@@ -214,6 +235,23 @@
   const getMoi = () => store.get('moi', null);
   // « 4e 3 » → « 4e » ; « Autre : … » → null
   const niveauDeClasse = (c) => NIVEAUX.find((n) => String(c || '').startsWith(n)) || null;
+  // Décor de la carte « Qui es-tu ? » : formes de couleur et symboles de maths (purement décoratif)
+  const DECOR_IDENT = '<div class="id-decor" aria-hidden="true">' + [
+    ['rond', '#ffb703', 'right:-46px;top:-46px;width:150px;height:150px', ''],
+    ['rond', '#3a5bd9', 'right:120px;top:14px;width:42px;height:42px', 'π'],
+    ['carre', '#14866d', 'right:30px;top:108px;width:38px;height:38px;transform:rotate(-10deg)', '√'],
+    ['carre', '#d6336c', 'right:178px;top:-12px;width:34px;height:34px;transform:rotate(14deg)', '÷'],
+    ['goutte', '#8338ec', 'right:84px;top:76px;width:36px;height:36px', '∞'],
+    ['rond', '#e8590c', 'right:226px;top:30px;width:30px;height:30px', '%'],
+    ['carre', '#0b7285', 'right:12px;bottom:58px;width:34px;height:34px;transform:rotate(8deg)', 'x²'],
+    ['rond', '#c98a00', 'right:70px;bottom:-14px;width:46px;height:46px', '½'],
+    ['triangle', '#e8590c', 'right:136px;bottom:-10px;width:48px;height:44px', '∠'],
+    ['carre', '#3a5bd9', 'right:200px;bottom:12px;width:32px;height:32px;transform:rotate(-12deg)', 'Σ'],
+    ['rond', '#14866d', 'right:258px;bottom:-12px;width:30px;height:30px', '≈'],
+    ['carre', '#fff', 'right:150px;top:62px;width:30px;height:30px;transform:rotate(18deg);color:#22223b', '⚄'],
+    ['svg', '', 'right:236px;top:68px;width:38px;height:38px', '<svg viewBox="0 0 40 40"><path d="M4 36V4l32 32z" fill="none" stroke="#9be38f" stroke-width="3" stroke-linejoin="round"/><path d="M4 28h8v8" fill="none" stroke="#9be38f" stroke-width="2"/></svg>'],
+    ['svg', '', 'right:300px;top:12px;width:30px;height:42px', '<svg viewBox="0 0 30 42"><circle cx="15" cy="5" r="3.5" fill="none" stroke="#c9a7ff" stroke-width="2"/><path d="M13 8 3 39M17 8l10 28" stroke="#c9a7ff" stroke-width="2.6" stroke-linecap="round"/></svg>']
+  ].map(([f, c, st, txt]) => '<span class="id-f id-' + f + '" style="' + (c ? 'background:' + c + ';' : '') + st + '">' + txt + '</span>').join('') + '</div>';
   function formIdent(onDone) {
     const moi = getMoi() || { prenom: '', classe: '' };
     const estAutre = moi.classe && !C.classes.includes(moi.classe);
@@ -224,7 +262,7 @@
       : '<input id="id-classe" autocomplete="off" placeholder="ex. 4e 3" value="' + esc(moi.classe) + '">';
     const el = document.createElement('form');
     el.className = 'card ident';
-    el.innerHTML =
+    el.innerHTML = DECOR_IDENT +
       '<h2>Qui es-tu ?</h2><p>Ton prénom et ta classe permettent à ton professeur de voir tes résultats.</p>' +
       '<div class="fields"><label class="field">Prénom<input id="id-prenom" autocomplete="given-name" maxlength="30" placeholder="ex. Léa" value="' + esc(moi.prenom) + '">' +
       '<span class="aide">Si un autre élève de ta classe a le même prénom, ajoute l’initiale de ton nom.</span></label>' +
@@ -291,7 +329,7 @@
       '<div id="identzone"></div>' +
       '<nav class="niveaux" aria-label="Niveau"><span class="niv-label">Ton niveau</span>' +
       NIVEAUX.map((n) => '<button class="niv" data-n="' + n + '" aria-pressed="' + (n === niveau) + '">' + n + '</button>').join('') +
-      '</nav><div id="conszone">' + (niveau ? htmlConseils(niveau) : '') + '</div><div id="jeuzone"></div><div id="grid"></div>' +
+      '</nav><div id="statszone">' + (niveau ? htmlStatsClasses(niveau) : '') + '</div><div id="conszone">' + (niveau ? htmlConseils(niveau) : '') + '</div><div id="jeuzone"></div><div id="grid"></div>' +
       '<footer class="foot"><a class="btn btn-ghost" href="#prof">Espace professeur</a></footer></div>';
 
     const iz = app.querySelector('#identzone');
@@ -310,7 +348,7 @@
     app.querySelectorAll('.niv').forEach((b) => b.onclick = () => { store.set('niveau', b.dataset.n); vuePortail(); });
     if (moi) app.querySelector('#jeuzone').innerHTML = (niveau ? carteChrono() + carteBrevet(niveau) : '') + carteJeu() + (niveau ? carteCiel(niveau) : '');
     brancherXP(app);
-    chargerAccueil(() => { majProfilAffiche(); const cz = app.querySelector('#conszone'); if (cz && niveau) cz.innerHTML = htmlConseils(niveau); });
+    chargerAccueil(() => { majProfilAffiche(); const sz = app.querySelector('#statszone'); if (sz && niveau) sz.innerHTML = htmlStatsClasses(niveau); const cz = app.querySelector('#conszone'); if (cz && niveau) cz.innerHTML = htmlConseils(niveau); });
     const grid = app.querySelector('#grid');
     if (!niveau) { grid.innerHTML = '<div class="card empty">Choisis ton niveau pour voir les exerciseurs.</div>'; return; }
     const liste = THEMES.filter((t) => t.classes.includes(niveau));
@@ -614,7 +652,7 @@
   function effacer(t) { const k = cleEnCours(t); if (k) store.del(k); }
   function reprendre(t, e) {
     // le temps passé hors de la série n'est pas compté
-    S = Object.assign({}, e, { t, vus: new Set(e.vus), cats: new Set(e.cats || []), debut: Date.now() - e.ecoule });
+    S = Object.assign({}, e, { t, repris: true, vus: new Set(e.vus), cats: new Set(e.cats || []), debut: Date.now() - e.ecoule });
     if (!S.ratt) S.ratt = { n: 0, ok: 0 };
     if (e.repondu) suivante(); else poser(e.q);
   }
@@ -689,7 +727,7 @@
       '<span class="count">' + (S.enRattrapage ? 'Rattrapage' : (S.i + 1) + '/' + S.n) + '</span><div class="track"><i style="width:' + (S.i / S.n * 100) + '%"></i></div>' +
       '<span class="score">✓ ' + S.score + '</span></div>' +
       '<div id="quitzone"></div>' +
-      '<section class="sheet">' + (S.enRattrapage ? '<div class="ratt-etiquette">Rattrapage · ne compte pas dans le score</div>' : '') + '<div class="consigne">' + esc(S.q.consigne || t.consigne) + (avecEtoiles(t) ? ' <span aria-hidden="true">' + stars(lvl) + '</span>' : '') + '</div>' +
+      '<section class="sheet">' + (S.i === 0 && !S.enRattrapage && !S.repris && getMoi() ? '<div class="qui-serie">Série au nom de <b>' + esc(getMoi().prenom) + ' · ' + esc(getMoi().classe) + '</b> · ce n’est pas toi ? <button class="lien" id="pas-moi">Changer d’élève</button></div>' : '') + (S.enRattrapage ? '<div class="ratt-etiquette">Rattrapage · ne compte pas dans le score</div>' : '') + '<div class="consigne">' + esc(S.q.consigne || t.consigne) + (avecEtoiles(t) ? ' <span aria-hidden="true">' + stars(lvl) + '</span>' : '') + '</div>' +
       '<div class="enonce">' + S.q.enonce + '</div>' +
       '<div class="answer" id="ans"><span class="pre">' + esc(S.q.prefixe != null ? S.q.prefixe : estChoix() ? '' : (t.prefixe || '= ')) + '</span><span class="box" id="box"></span>' + (S.q.suffixe ? '<span class="suf">' + esc(S.q.suffixe) + '</span>' : '') + '</div></section>' +
       '<p class="hint" id="hint"></p>' +
@@ -703,6 +741,8 @@
     });
     app.querySelector('#quit').onclick = demanderQuitter;
     if (t.cours) app.querySelector('#cours').onclick = () => ouvrirCours(false);
+    const pasMoi = app.querySelector('#pas-moi');
+    if (pasMoi) pasMoi.onclick = () => { S = null; stopKeys(); store.del('moi'); store.del('niveau'); location.hash = ''; vuePortail(); };
     if (S.coursAFaire) { S.coursAFaire = false; S.coursMontre = true; ouvrirCours(true); }
     stopKeys();
     keyHandler = (e) => {
@@ -1022,7 +1062,8 @@
     stopKeys();
     const { t, lvl, score, n } = S;
     effacer(t);
-    const bonusAvant = viesBonus(), reussie = score >= Math.ceil(0.8 * n);
+    const bonusAvant = viesBonus(), reussie = score >= Math.ceil(0.8 * n), partieGagnee = score >= Math.ceil(n / 2);
+    if (partieGagnee) gagnerPartie();
     if (reussie) setViesBonus(bonusAvant + 1);
     const bonusApres = viesBonus();
     const moiB = getMoi(), gain = xpSerie(score, n);
@@ -1060,7 +1101,7 @@
       '<p class="send" id="send">' + (C.urlScript ? 'Envoi du résultat à ton professeur…' : 'Mode démonstration : le résultat n’est pas envoyé.') + '</p>' +
       '<a class="card gain" href="#jeu"><span class="jeu-icone">' + ICONE_JEU + '</span><span class="jeu-txt"><strong>' +
         (bonusApres > bonusAvant ? 'Bravo, 8/10 ou plus : +1 vie pour ' + JEU.nom + ' !' : reussie ? 'Réserve de vies bonus pleine !' : JEU.nom) + '</strong>' +
-        '<span>' + (reussie ? 'Ta prochaine partie : ' + txtVies(bonusApres) + '.' : 'Fais 8/10 ou plus pour gagner une vie bonus. Tu peux quand même jouer !') + '</span></span>' + pastilles(bonusApres) + '</a>' +
+        '<span>' + (partieGagnee ? '+1 partie de jeu · ' : 'Au moins la moitié des points pour gagner une partie · ') + txtParties(partiesDispo()) + '.' + (reussie ? ' Ta prochaine partie : ' + txtVies(bonusApres) + '.' : '') + '</span></span>' + pastilles(bonusApres) + '</a>' +
       '<div class="btn-row">' +
       (p >= 0.8 && lvl < 3 && t.niveaux[lvl] ? '<button class="btn btn-primary" id="up">Passer au niveau ' + '★'.repeat(lvl + 1) + '</button>' : '') +
       '<button class="btn ' + (p >= 0.8 && lvl < 3 ? '' : 'btn-primary') + '" id="again">Nouvelle série</button>' +
@@ -1293,6 +1334,18 @@
         { id: 'duree', titre: 'Durée', v: (l) => l.duree, h: (l) => fmtDuree(l.duree), num: true }
       ]
     };
+    const onglets = '<div class="tabs"><button class="chip" data-o="eleves" aria-pressed="' + (o === 'eleves') + '">Par élève</button><button class="chip" data-o="series" aria-pressed="' + (o === 'series') + '">Toutes les séries</button><button class="chip" data-o="classes" aria-pressed="' + (o === 'classes') + '">Classes</button><button class="chip" data-o="jeu" aria-pressed="' + (o === 'jeu') + '">Jeu</button></div>';
+    const kpis = '<div class="kpis"><div class="card kpi"><b>' + eleves.size + '</b><span>élèves actifs</span></div><div class="card kpi"><b>' + L.length + '</b><span>séries terminées</span></div><div class="card kpi"><b>' + moy + ' %</b><span>réussite moyenne</span></div></div>';
+    if (o === 'classes') { // élèves actifs, séries, réussite et « 5 minutes chrono » par classe, avec les filtres choisis (période…)
+      const parC = new Map();
+      L.forEach((l) => { const c = parC.get(l.classe) || { classe: l.classe, el: new Set(), n: 0, s: 0, tot: 0, chrono: 0 }; c.el.add(l.cleEleve); if (l.themeId === 'chrono') c.chrono++; else { c.n++; c.s += l.score; c.tot += l.total; } parC.set(l.classe, c); });
+      const rows = [...parC.values()].sort((a, b) => b.el.size - a.el.size || a.classe.localeCompare(b.classe, 'fr', { numeric: true })), mx = Math.max(1, ...rows.map((r) => r.el.size));
+      el.innerHTML = kpis + onglets + (rows.length ? '<div class="card stats-cl prof">' + rows.map((r) => '<div class="sc-ligne"><span class="sc-nom">' + esc(r.classe) + '</span><span class="sc-barre"><i style="width:' + Math.max(4, r.el.size / mx * 100) + '%"></i></span>' +
+        '<span class="sc-val"><b>' + r.el.size + '</b> élève' + (r.el.size > 1 ? 's' : '') + ' <small>' + r.n + ' série' + (r.n > 1 ? 's' : '') + (r.tot ? ' · ' + Math.round(r.s / r.tot * 100) + ' % de réussite' : '') + (r.chrono ? ' · ' + r.chrono + ' « 5 min »' : '') + '</small></span></div>').join('') +
+        '</div><p class="jeu-note">Les filtres du haut (période, exerciseur, élève) s’appliquent. Les élèves voient seulement les classes de leur niveau actives cette semaine, sans aucun prénom.</p>' : '<div class="card empty">Aucune série pour ces filtres.</div>');
+      el.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { F.onglet = b.dataset.o; dernierCoche = null; tableaux(el); });
+      return;
+    }
     const donnees = o === 'eleves' ? [...eleves.values()] : o === 'series' ? L : LJ;
     const cle = (r) => (o === 'eleves' ? r.cle : r.id);
     const cols = COLS[o], tri = TRI[o], colTri = cols.find((c) => c.id === tri.col) || cols[0];
@@ -1319,8 +1372,7 @@
       (lignes.length > MAX_LIGNES ? '<p class="jeu-note">Les ' + MAX_LIGNES + ' premières lignes sont affichées sur ' + lignes.length + '. La case de l’en-tête les coche toutes.</p>' : '');
 
     el.innerHTML = (flash ? '<p class="flash" role="status">' + esc(flash) + '</p>' : '') +
-      '<div class="kpis"><div class="card kpi"><b>' + eleves.size + '</b><span>élèves actifs</span></div><div class="card kpi"><b>' + L.length + '</b><span>séries terminées</span></div><div class="card kpi"><b>' + moy + ' %</b><span>réussite moyenne</span></div></div>' +
-      '<div class="tabs"><button class="chip" data-o="eleves" aria-pressed="' + (o === 'eleves') + '">Par élève</button><button class="chip" data-o="series" aria-pressed="' + (o === 'series') + '">Toutes les séries</button><button class="chip" data-o="jeu" aria-pressed="' + (o === 'jeu') + '">Jeu</button></div>' + corps;
+      kpis + onglets + corps;
     flash = '';
     el.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { F.onglet = b.dataset.o; dernierCoche = null; tableaux(el); });
     el.querySelectorAll('[data-tri]').forEach((b) => b.onclick = () => {
@@ -1385,11 +1437,22 @@
      JEU « PLUIE DE NOMBRES »
      Une partie est gagnée à chaque série terminée (3 en réserve au maximum).
      ===================================================================== */
-  const JEU = { nom: 'Au tableau !', viesBase: 3, maxBonus: 3, seuilExpert: 300 };
+  const JEU = { nom: 'Au tableau !', viesBase: 3, maxBonus: 3, seuilExpert: 300, offertes: 2 };
   const idEleve = () => { const m = getMoi(); return m ? (m.classe + '|' + m.prenom).toLowerCase() : 'anonyme'; };
   // Vies bonus : +1 par série terminée avec 8/10 ou plus, 3 au maximum, toutes utilisées à la partie suivante.
   const viesBonus = () => store.get('viesbonus:' + idEleve(), 0);
   const setViesBonus = (n) => store.set('viesbonus:' + idEleve(), Math.max(0, Math.min(JEU.maxBonus, n)));
+  // Parties : 2 offertes chaque jour, puis 1 partie par série d'exercices terminée avec au moins la moitié des points (même règle dans le script Google)
+  const etatJeu = () => store.get('jeu:' + idEleve(), { d: '', libres: 0, gagnees: 0 });
+  const partiesDispo = (e) => { e = e || etatJeu(); return (e.d === ymd(new Date()) ? Math.max(0, JEU.offertes - e.libres) : JEU.offertes) + (e.gagnees || 0); };
+  const txtParties = (n) => (n ? n + ' partie' + (n > 1 ? 's' : '') + ' disponible' + (n > 1 ? 's' : '') : 'Plus de partie : fais une série d’exercices (5/10 ou plus) pour en débloquer une');
+  function gagnerPartie() { const e = etatJeu(); e.gagnees = (e.gagnees || 0) + 1; store.set('jeu:' + idEleve(), e); }
+  function utiliserPartie() {
+    const e = etatJeu(), auj = ymd(new Date());
+    if (e.d !== auj) { e.d = auj; e.libres = 0; }
+    if (e.libres < JEU.offertes) e.libres++; else if (e.gagnees > 0) e.gagnees--; else return false;
+    store.set('jeu:' + idEleve(), e); envoyerEtat({ partie: 1 }); return true;
+  }
   const txtVies = (b) => JEU.viesBase + ' vies' + (b ? ' + ' + b + (b > 1 ? ' vies bonus' : ' vie bonus') : '');
   const record = (mode) => store.get('record:' + mode + ':' + idEleve(), 0);
   const expertDebloque = () => record('normal') >= JEU.seuilExpert;
@@ -1401,7 +1464,7 @@
   function carteJeu() {
     const b = viesBonus();
     return '<a class="card jeu-carte" href="#jeu"><span class="jeu-icone">' + ICONE_JEU + '</span><span class="jeu-txt"><strong>' + JEU.nom + '</strong>' +
-      '<span>' + txtVies(b) + (b < JEU.maxBonus ? ' · Une série à 8/10 ou plus = +1 vie bonus' : ' · Réserve de vies bonus pleine !') + '</span></span>' + pastilles(b) + '</a>';
+      '<span><b>' + txtParties(partiesDispo()) + '</b> · ' + txtVies(b) + '</span></span>' + pastilles(b) + '</a>';
   }
 
   function vueJeu() {
@@ -1415,10 +1478,12 @@
       '<p><strong>Ta craie s’use</strong> : chaque bonne prise la recharge. Si elle est vide, tu perds une vie. Impossible de gagner en restant sur le côté !</p>' +
       '<p>Régulièrement, un <strong>bonus</strong> change la règle (que des calculs, nombres pairs, multiples de 9, règle inversée…) et <strong>double les points</strong>. Sans faute, le bonus est <strong>prolongé</strong> (jusqu’à 1 minute). Tout bon : +50. La règle s’affiche en grand avant de commencer ; touche l’écran quand tu l’as lue.</p></div>' +
       '<div class="card jeu-panneau"><div class="jeu-ligne"><span>Vies pour ta prochaine partie : <strong>' + txtVies(b) + '</strong></span>' + pastilles(b) + '</div>' +
+      '<div class="jeu-ligne parties' + (partiesDispo() ? '' : ' aucune') + '"><span>' + txtParties(partiesDispo()) + '</span></div>' +
       '<div class="jeu-ligne"><span>Ton record</span><strong>' + record('normal') + ' pts</strong></div>' +
       (exp ? '<div class="jeu-ligne"><span>Ton record en mode expert</span><strong>' + record('expert') + ' pts</strong></div>' : '') +
-      '<div class="btn-row"><button class="btn btn-primary" id="j-normal">Jouer</button>' +
-      '<button class="btn" id="j-expert"' + (exp ? '' : ' disabled') + '>Mode expert</button></div>' +
+      '<div class="btn-row"><button class="btn btn-primary" id="j-normal"' + (partiesDispo() ? '' : ' disabled') + '>Jouer</button>' +
+      '<button class="btn" id="j-expert"' + (exp && partiesDispo() ? '' : ' disabled') + '>Mode expert</button>' + (partiesDispo() ? '' : '<a class="btn" href="#">Faire des exercices</a>') + '</div>' +
+      '<p class="jeu-note">Chaque jour, ' + JEU.offertes + ' parties sont offertes. Ensuite, chaque série d’exercices terminée avec au moins la moitié des points (5/10, ou 3/5 en « 5 minutes chrono ») te donne une partie.</p>' +
       '<p class="jeu-note">Chaque série d’exercices terminée avec 8/10 ou plus te donne une vie bonus (' + JEU.maxBonus + ' au maximum), utilisée à ta prochaine partie.</p>' +
       '<p class="jeu-note">' + (exp ? 'Mode expert : la règle change toutes les 15 secondes (nombres premiers, multiples de 3, de 5 ou de 10).'
         : 'Le mode expert se débloque à ' + JEU.seuilExpert + ' points en mode normal.') + '</p></div>' +
@@ -1525,6 +1590,7 @@
 
   function jouer(mode) {
     if (mode === 'expert' && !expertDebloque()) return vueJeu();
+    if (!utiliserPartie()) return vueJeu(); // plus de partie disponible
     const bonusUtilises = viesBonus();
     setViesBonus(0);
     if (bonusUtilises) envoyerEtat({ vies: 0 });
@@ -1806,7 +1872,7 @@
         '<div class="big">' + score + '<small> pts</small></div><h1>' + (nouveau ? 'Nouveau record !' : 'Partie terminée') + '</h1>' +
         (debloque ? '<p class="send ok">Bravo, tu as débloqué le mode expert !</p>' : '') +
         '<p class="jeu-note" id="j-envoi">' + (C.urlScript ? (Math.round(t) >= 5 && score > 0 ? 'Envoi de ton score au classement…' : '') : '') + '</p>' +
-        '<div class="btn-row"><button class="btn btn-primary" id="j-encore">Rejouer</button><a class="btn" href="#">Faire des exercices</a></div>' +
+        '<div class="btn-row">' + (partiesDispo() ? '<button class="btn btn-primary" id="j-encore">Rejouer (' + txtParties(partiesDispo()) + ')</button><a class="btn" href="#">Faire des exercices</a>' : '<a class="btn btn-primary" href="#">Faire des exercices pour rejouer</a>') + '</div>' +
         '<p class="jeu-note">Astuce : une série d’exercices à 8/10 ou plus te donne une vie bonus pour ta prochaine partie.</p>' +
         '<section id="podiums" class="podiums"></section></div></div>';
       const enc = app.querySelector('#j-encore'); if (enc) enc.onclick = () => jouer(mode);
